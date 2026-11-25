@@ -1658,6 +1658,68 @@ generation change, a theme change and an embedded device replacement release eve
 and text rendering parameter changes keep both, because formats are device-independent and brushes do not depend on
 DPI. The incremental-versus-fresh oracle drops both maps.
 
+### Popup surfaces
+
+The material surface of a popup (the `ComboBox` list, a native menu popup) is one function,
+`PaintPopupMaterialSurface`: two drop-shadow passes, the blurred backdrop in a rounded layer for the translucent materials,
+the base fill, a glaze and a bottom-shade gradient, the rim and two borders. Each popup retains what it draws with
+(`PopupSurfaceCache`, plan item `W2.4`). The code before W2.4 stays callable as the oracle (`SetPopupSurfacesUncachedForTest`).
+
+- Blurred backdrop: the capture is blurred once into a bitmap of the capture's size, before the surface draws, and every
+  paint, the first included, draws that bitmap in the rounded layer (Direct2D's pooled one, `PushLayer(..., nullptr)`). The
+  bitmap is made again only when its inputs change: a new capture (a popup opened, and a menu popup moved or resized, which
+  captures again in `RefreshMenuPopupBackdrop`), the blur radius (material or theme), the DPI, and a device or
+  device-context change (device loss, an embedded `ReplaceDevice`). Reason: Direct2D's blur result depends on the paint
+  clip, so a blur drawn for each paint is not exact under region painting (W4.10): a frame that repaints a region over a
+  blurred popup differed from the whole frame by one level in a column of pixels. A kept result draws the same pixels in
+  every frame, whole or region. The kept form differs from the per-paint blur of a whole frame by at most one level on some
+  pixels of a blurred popup (developer's decision of 25 November 2026).
+- The backdrop does not follow content: a popup's blurred backdrop is the content captured when the popup opened (and when a
+  menu popup is moved or resized), kept as that bitmap; content that changes behind an open popup is neither captured nor
+  blurred again, and the popup keeps showing the captured picture until it closes. Plan item `W5.12` replaces the capture.
+- Shadow passes: each pass keeps its mask command list and shadow effect while its shape and the transform it was recorded
+  under stay the same; a blur or opacity change only sets the effect's property, and each pass drawn is preceded by a flush,
+  as the per-paint pass's target switch to record its mask flushed the batch. Both passes are rendered once into a bitmap
+  starting at the target's device pixel (0,0) under the same transform and drawn back unscaled, then flushed, when the
+  popup is blurred, or is a menu popup window on its composition swap chain (cleared to transparent, the shadow the first
+  thing it draws). Over transparent pixels that gives the per-paint pixels exactly; over content it differs by at most one
+  level, which a blurred popup's accepted change covers. A `Solid` popup over content (the `ComboBox` list in a view) runs
+  its two passes every paint from the retained objects: no retained form gives its per-paint pixels exactly (a bitmap,
+  `D2D1_PROPERTY_CACHED` or a 16- or 32-bit float intermediate holds the effect's output quantized before the blend), and the
+  passes cannot be skipped where the body covers them, since no material's body is opaque.
+- Gradients: each keeps its stop collection while its three colors stay the same, and its brush, moved to the popup's
+  rectangle with `SetStartPoint`/`SetEndPoint`. They are visible on `Solid` too, so they are retained, never skipped.
+- Making objects: every retained object a paint needs is made (or kept) before the surface draws anything. A `Solid` popup's
+  paint that had to make any of them draws the per-paint way, since making objects records masks and switches targets and
+  changes how Direct2D batches and blends the draws around them by a level on a few pixels; a `Solid` popup therefore draws
+  exactly its pixels before W2.4 in every frame. A blurred popup draws from what it keeps in every paint.
+- The paint-region verifier's reference paint (W4.10) draws a popup from what the frame kept, read-only: it makes, replaces
+  or ages nothing retained (nor the native device stack), so a region frame over a blurred popup equals the whole frame.
+
+Every object is keyed by every input it was made from and is replaced, never reused stale. A popup's cache is released when
+the popup closes (`ComboBox` with its layout, a `MenuPopup` with its window). It is bounded: two passes, one shadow bitmap no
+larger than its target, one blurred bitmap of the capture's size, one geometry and two gradients per open popup. Registry
+rows `ComboBox._popupSurfaceCache` and `MenuPopup.surfaceCache` count it and its bitmaps' bytes, and drop it.
+`PaintTransientSurface` keeps its backdrop's clip and blurred capture in the caller's `TransientSurfaceBackdrop` by the same
+rules, released by `ReleaseRetainedBlur`, `SetCapture` and `Reset`. A steady popup frame creates no effect, command list,
+layer, geometry, gradient stop collection, brush or bitmap and runs no blur pass (`popups.backdropBlurPasses`);
+`frame.shadowPasses` counts the two passes a `Solid` popup over content still runs.
+
+### Retained native device stack
+
+A thread's shared native device stack (D3D11 device and context, DXGI factory, Direct2D device, DirectComposition device)
+is a bounded retained resource while an `EmbeddedHost` is attached on the thread and no native host uses it: at most one per
+thread, kept so that each native menu an embedded-only application opens creates no device (`G10`: 0 `D3D11CreateDevice`
+calls per menu session after the first). Its lifetime rule is in the
+[Win32 host contract](../Rendering/Rendering_Win32Host.md#shared-device-stack). Registry row `SharedDeviceStack.retained`
+counts it and its drop releases it, so an application can give the memory back; the next popup creates a stack again. The row
+has no byte count: the memory belongs to the devices and is not readable. Measured on one machine (Windows 11; the default
+adapter an NVIDIA GeForce RTX 5080, plus WARP), with a standalone probe of the same creation
+sequence, the idle stack holds about 15 to 19 MiB of private bytes and about 8 MiB of dedicated video memory on hardware
+(about 1.7 MiB of private bytes on WARP), and keeping it saves about 100 ms per menu open on hardware (about 105 ms from
+attach to the first presented frame with no stack, about 1.5 ms with one; about 5 ms and 0.7 ms on WARP)
+([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W2.4/README.md)).
+
 ### Text field layouts
 
 A multiline `TextField` lays out its display text once per change of that text, its text rectangle's width (and height,

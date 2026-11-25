@@ -15,8 +15,9 @@ namespace DxUi
 {
 namespace
 {
-thread_local bool g_staleLabelLayoutForTest = false;
-thread_local bool g_freshPreparationForTest = false;
+thread_local bool g_staleLabelLayoutForTest      = false;
+thread_local bool g_freshPreparationForTest      = false;
+thread_local bool g_popupSurfacesUncachedForTest = false;
 
 template <typename Visit> void VisitTree(Control& control, const Visit& visit) noexcept
 {
@@ -65,7 +66,7 @@ template <typename Map> [[nodiscard]] uint64_t UnorderedMapBytes(const Map& map)
 std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 {
     {
-        static constexpr std::array<RetainedHostCacheRow, 7u> rows{{
+        static constexpr std::array<RetainedHostCacheRow, 8u> rows{{
             // ControlHost::_brushCache, its _transitionBrushes (W2.8) and _brushFailureLogKeys, the warnings already written.
             {"ControlHost._brushCache",
              [](const ControlHost& host) noexcept { return host._brushCache.size() + host._transitionBrushes.size(); },
@@ -107,6 +108,14 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
             host._richTitleHoverCache.title = std::wstring(0u, L' ');
         },
              [](const ControlHost& host) noexcept { return StringBytes(host._richTitleHoverCache.title); }},
+            // The shared native device stack of the host's thread, kept past its last native host or popup while an EmbeddedHost
+            // is attached on the thread (W2.4; DxUi.WindowHost.cpp, SharedWindowHostGraphicsResources): at most one per thread,
+            // counted only while no native host uses it. Its memory belongs to the D3D11, Direct2D and DirectComposition
+            // devices and is not readable (about 15 to 19 MiB private bytes and 8 MiB of video memory on hardware, W2.4
+            // receipt), so the row has no byte count. Its drop releases it when no native host is attached.
+            {"SharedDeviceStack.retained",
+             [](const ControlHost& host) noexcept { return RetainedSharedDeviceStacks(host._attachmentOwnerThreadId); },
+             [](ControlHost& host) noexcept { DropRetainedSharedDeviceStack(host._attachmentOwnerThreadId); }},
             // The published UI Automation snapshot (WindowHostAccessibilityTarget::snapshot, native or embedded).
             {"Accessibility.snapshot",
              [](const ControlHost& host) noexcept { return CountRetainedAccessibilitySnapshotRecords(host); },
@@ -134,7 +143,7 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 23u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 25u> rows{{
             // Panel::_paintExtent, the painted extent of a panel and its visible descendants (W4.10): recomputed on demand.
             {"Panel._paintExtent",
              [](const Control& control) noexcept { return PaintExtentAccess::CachedExtents(control); },
@@ -314,6 +323,44 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             const auto* combo = dynamic_cast<const ComboBox*>(&control);
             return combo ? BitmapBytes(combo->_popupBackdropBitmap.get()) : 0u;
+        }},
+            // ComboBox::_popupSurfaceCache, the open list's retained surface (W2.4): shadow pass masks and effects, the blurred
+            // backdrop with its effect and layer clip, the glaze and shade gradients. Bounded per popup (DxUi.Internal.h,
+            // PopupSurfaceCache); keyed by device, DPI, shape, transform, colors and capture; released when the popup closes.
+            {"ComboBox._popupSurfaceCache",
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo && combo->_popupSurfaceCache ? combo->_popupSurfaceCache->Entries() : 0u;
+        },
+             [](Control& control) noexcept
+        {
+            if (auto* combo = dynamic_cast<ComboBox*>(&control); combo && combo->_popupSurfaceCache)
+                combo->_popupSurfaceCache->Release();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo && combo->_popupSurfaceCache ? combo->_popupSurfaceCache->ResidentBytes() : uint64_t{0u};
+        }},
+            // MenuPopup::surfaceCache, a native menu popup's retained surface (W2.4), reached through the popup host's
+            // MenuContentControl root: as the ComboBox row, plus the shadow bitmap both passes were rendered into once.
+            // Released with the popup.
+            {"MenuPopup.surfaceCache",
+             [](const Control& control) noexcept
+        {
+            const PopupSurfaceCache* const cache = FindMenuPopupSurfaceCache(control);
+            return cache ? cache->Entries() : 0u;
+        },
+             [](Control& control) noexcept
+        {
+            if (PopupSurfaceCache* const cache = FindMenuPopupSurfaceCache(control))
+                cache->Release();
+        },
+             [](const Control& control) noexcept
+        {
+            const PopupSurfaceCache* const cache = FindMenuPopupSurfaceCache(control);
+            return cache ? cache->ResidentBytes() : uint64_t{0u};
         }},
             // MenuBar::_menuBarLayoutCache.
             {"MenuBar._menuBarLayoutCache",
@@ -636,7 +683,7 @@ std::span<const std::string_view> RetainedCacheAccess::Names() noexcept
 
 std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexcept
 {
-    static constexpr std::array<RetainedCacheExemption, 15u> exemptions{{
+    static constexpr std::array<RetainedCacheExemption, 16u> exemptions{{
         {"ControlHost._pointerHitCache",
          "The hit result of one pointer event (W2.9): kept from a cursor query to the mouse message it announces, or within one "
          "embedded DispatchPointer, and dropped when that event ends; no frame reads it and none outlives the event."},
@@ -668,6 +715,10 @@ std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexce
         {"MenuPopup.descriptionLayouts",
          "Native menu popups (descriptionLayouts, liveRowLayouts, backdropSnapshot, the popup host) run only in the focus-taking "
          "Menu suites; their resources are reported by DebugGetContextMenuResources."},
+        {"TransientSurfaceBackdrop.cachedClipGeometry",
+         "A public struct the application owns and passes to PaintTransientSurface; no host reaches it. Its retained "
+         "clip and blurred capture (cachedClipGeometry, cachedBlurredBitmap with cachedBlurDip, made from cachedBlurSource; W2.4) are "
+         "released by its own ReleaseRetainedBlur, SetCapture and Reset, and replaced when the device, DPI, blur or shape changes."},
         {"MenuFlyoutItem.BitmapIcon.cachedBitmap", "Bitmap made from an application HBITMAP for a native menu popup; see MenuPopup."},
     }};
     return exemptions;
@@ -692,6 +743,14 @@ void SetStaleLabelLayoutInjectionForTest(bool enabled) noexcept
 void SetFreshPreparationForTest(bool enabled) noexcept
 {
     g_freshPreparationForTest = enabled;
+}
+void SetPopupSurfacesUncachedForTest(bool enabled) noexcept
+{
+    g_popupSurfacesUncachedForTest = enabled;
+}
+bool ArePopupSurfacesUncachedForTest() noexcept
+{
+    return g_popupSurfacesUncachedForTest;
 }
 } // namespace Detail
 

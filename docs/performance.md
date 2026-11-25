@@ -345,6 +345,17 @@ frame. A hover frame of the ComplexUi fixture (`FX5`) creates no text layout. Th
 [contract](../Specs/Core/Core_PerformanceAndResources.md#retained-text-layouts) states the key, the bound, what releases
 the layouts and the oracle that proves they draw exactly what `DrawText` draws; `--test-retained-text-layouts` runs the gate.
 
+Popups keep what their surface draws with: an open `ComboBox` list or menu popup makes its shadow masks and effects,
+its backdrop's clip, its blurred backdrop (one bitmap) and its gradients once and reuses them until the popup's size,
+capture, theme, DPI or device changes. A steady popup frame (a hover or keyboard step) creates none of them and blurs
+nothing; only a `Solid` `ComboBox` list, drawn over the view's content, still runs its two shadow passes, because no
+retained form of them gives its exact pixels. Keeping the blur also makes a frame that repaints a region over a blurred popup
+identical to a whole frame. A menu popup renders once per open. `PaintTransientSurface` keeps its backdrop's clip and
+blurred capture in your `TransientSurfaceBackdrop`; `SetCapture`, `Reset` and `ReleaseRetainedBlur` release them. The
+[contract](../Specs/Core/Core_PerformanceAndResources.md#popup-surfaces) states the keys and releases;
+`DxUi.EmbeddedTests.exe --test-popup-surfaces` compares the frames with the code before W2.4
+([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W2.4/README.md)).
+
 ```powershell
 # The ComplexUi work receipt: per-frame counters for 40 clean and 40 dirty frames, with the C++ allocation sink.
 .\.build\x64\Release\DxUi.EmbeddedTests.exe --test-work-counters .build\work-counters.json

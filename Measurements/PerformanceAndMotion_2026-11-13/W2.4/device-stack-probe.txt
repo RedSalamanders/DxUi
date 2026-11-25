@@ -1,0 +1,9 @@
+default adapter: NVIDIA GeForce RTX 5080 (dedicated 15977 MiB)
+hardware: attach-to-first-present median cold 105.73 ms (min 101.54 max 118.16), warm 1.61 ms (min 1.22 max 2.03); idle stack +18060 KiB private, +7636 KiB local video, +1032 KiB non-local video
+WARP: attach-to-first-present median cold 3.95 ms (min 3.37 max 4.84), warm 0.47 ms (min 0.42 max 0.61); idle stack +1780 KiB private, +0 KiB local video, +0 KiB non-local video
+default adapter: NVIDIA GeForce RTX 5080 (dedicated 15977 MiB)
+hardware: attach-to-first-present median cold 103.92 ms (min 100.67 max 115.88), warm 1.57 ms (min 1.26 max 1.94); idle stack +15028 KiB private, +8724 KiB local video, +1032 KiB non-local video
+WARP: attach-to-first-present median cold 3.84 ms (min 3.46 max 4.96), warm 0.60 ms (min 0.41 max 0.93); idle stack +1860 KiB private, +0 KiB local video, +0 KiB non-local video
+default adapter: NVIDIA GeForce RTX 5080 (dedicated 15977 MiB)
+hardware: attach-to-first-present median cold 105.46 ms (min 99.16 max 119.99), warm 1.51 ms (min 1.30 max 2.67); idle stack +16544 KiB private, +8724 KiB local video, +1032 KiB non-local video
+WARP: attach-to-first-present median cold 3.90 ms (min 3.39 max 4.90), warm 0.74 ms (min 0.48 max 1.17); idle stack +1180 KiB private, +0 KiB local video, +0 KiB non-local video

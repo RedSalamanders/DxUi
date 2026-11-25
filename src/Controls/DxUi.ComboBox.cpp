@@ -26,26 +26,8 @@ namespace
 constexpr float kComboBoxPopupPaddingDip      = 4.0f;
 constexpr float kComboBoxPopupCornerRadiusDip = kPopupRoundSmallCornerRadiusDip;
 constexpr size_t kComboBoxMaxVisibleItems     = 8u;
-constexpr GUID kComboBoxGaussianBlurEffectId  = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5}};
 
-struct ComboBoxPopupMaterialStyle
-{
-    D2D1_COLOR_F baseFill;
-    D2D1_COLOR_F glazeTop;
-    D2D1_COLOR_F glazeMid;
-    D2D1_COLOR_F bottomShade;
-    D2D1_COLOR_F outerBorder;
-    D2D1_COLOR_F innerBorder;
-    D2D1_COLOR_F topRim;
-    float shadowInsetDip        = 3.0f;
-    float shadowYOffsetDip      = 3.0f;
-    float shadowSpreadDip       = 9.0f;
-    float shadowOuterOpacity    = 0.18f;
-    float shadowInnerOpacity    = 0.10f;
-    float backdropOpacity       = 0.0f;
-    float backdropBlurDip       = 0.0f;
-    float backdropDetailOpacity = 0.0f;
-};
+using ComboBoxPopupMaterialStyle = PopupMaterialStyle;
 
 [[nodiscard]] const ScrollPanel* FindContainingScrollPanelRecursive(const Control* control, const Control* target, const ScrollPanel* activeScroll) noexcept
 {
@@ -219,38 +201,6 @@ struct ComboBoxPopupMaterialStyle
     return cachedBitmap.get();
 }
 
-[[nodiscard]] wil::com_ptr<ID2D1LinearGradientBrush> CreateComboBoxVerticalGradientBrush(
-    ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, const D2D1_COLOR_F& topColor, const D2D1_COLOR_F& midColor, const D2D1_COLOR_F& bottomColor) noexcept
-{
-    if (! dc)
-    {
-        return {};
-    }
-
-    const D2D1_GRADIENT_STOP stops[3] = {
-        D2D1::GradientStop(0.0f, topColor),
-        D2D1::GradientStop(0.42f, midColor),
-        D2D1::GradientStop(1.0f, bottomColor),
-    };
-
-    wil::com_ptr<ID2D1GradientStopCollection> stopCollection;
-    if (FAILED(CountedCreateGradientStopCollection(dc, stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
-    {
-        return {};
-    }
-
-    wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(CountedCreateLinearGradientBrush(dc,
-                                                D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)),
-                                                stopCollection.get(),
-                                                brush.put())))
-    {
-        return {};
-    }
-
-    return brush;
-}
-
 [[nodiscard]] ComboBoxPopupMaterialStyle ResolveComboBoxPopupMaterialStyle(const ThemePalette& theme, const ComboBoxVisualStyle& style) noexcept
 {
     const D2D1_COLOR_F highlightBase = ChooseContrastingTextColor(style.popupFill);
@@ -321,138 +271,6 @@ struct ComboBoxPopupMaterialStyle
     return material;
 }
 
-void PaintComboBoxBackdropSurface(ControlHost& host,
-                                  const WindowHostBitmapCapture* capture,
-                                  wil::com_ptr<ID2D1Bitmap1>& cachedBitmap,
-                                  wil::com_ptr<ID2D1Device>& cachedDevice,
-                                  const D2D1_RECT_F& popupRect,
-                                  float cornerRadiusDip,
-                                  const ComboBoxPopupMaterialStyle& material) noexcept
-{
-    if (! capture || material.backdropOpacity <= 0.0f || material.backdropBlurDip <= 0.0f)
-    {
-        return;
-    }
-
-    auto* const dc             = host.GetDeviceContext();
-    ID2D1Bitmap1* const bitmap = EnsureComboBoxBackdropBitmap(host, *capture, cachedBitmap, cachedDevice);
-    if (! dc || ! bitmap)
-    {
-        return;
-    }
-
-    wil::com_ptr<ID2D1Factory> factory;
-    dc->GetFactory(factory.put());
-
-    wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory ||
-        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(popupRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
-        ! roundedGeometry)
-    {
-        return;
-    }
-
-    wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(CountedCreateEffect(dc, kComboBoxGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
-    {
-        return;
-    }
-
-    blurEffect->SetInput(0u, bitmap);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, material.backdropBlurDip);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
-
-    wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(CountedCreateLayer(dc, layer.put())) || ! layer)
-    {
-        return;
-    }
-
-    const D2D1_RECT_F sourceRect =
-        D2D1::RectF(0.0f, 0.0f, host.PixelsToDip(static_cast<float>(capture->widthPx)), host.PixelsToDip(static_cast<float>(capture->heightPx)));
-
-    const D2D1_LAYER_PARAMETERS1 layerParameters = D2D1::LayerParameters1(popupRect,
-                                                                          roundedGeometry.get(),
-                                                                          D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-                                                                          D2D1::Matrix3x2F::Identity(),
-                                                                          (std::clamp)(material.backdropOpacity, 0.0f, 1.0f),
-                                                                          nullptr,
-                                                                          D2D1_LAYER_OPTIONS1_NONE);
-    const D2D1_POINT_2F targetOffset             = D2D1::Point2F(popupRect.left, popupRect.top);
-    dc->PushLayer(layerParameters, layer.get());
-    dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
-    ++Detail::Work().popups.backdropBlurPasses;
-    if (material.backdropDetailOpacity > 0.0f)
-    {
-        dc->DrawBitmap(bitmap, popupRect, (std::clamp)(material.backdropDetailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);
-    }
-    dc->PopLayer();
-}
-
-void PaintComboBoxPopupMaterialSurface(ControlHost& host,
-                                       const WindowHostBitmapCapture* capture,
-                                       wil::com_ptr<ID2D1Bitmap1>& cachedBitmap,
-                                       wil::com_ptr<ID2D1Device>& cachedDevice,
-                                       const D2D1_RECT_F& popupRect,
-                                       float cornerRadiusDip,
-                                       const ComboBoxPopupMaterialStyle& material) noexcept
-{
-    auto* const dc = host.GetDeviceContext();
-    if (! dc)
-    {
-        return;
-    }
-
-    const D2D1_RECT_F shadowTargetRect   = InflateRect(popupRect, -material.shadowInsetDip, -material.shadowInsetDip);
-    const D2D1_ROUNDED_RECT popupRounded = D2D1::RoundedRect(popupRect, cornerRadiusDip, cornerRadiusDip);
-    const D2D1_RECT_F innerRect          = InflateRect(popupRect, -1.0f, -1.0f);
-    const D2D1_ROUNDED_RECT innerRounded = D2D1::RoundedRect(innerRect, (std::max)(0.0f, cornerRadiusDip - 1.0f), (std::max)(0.0f, cornerRadiusDip - 1.0f));
-
-    DrawDropShadow(host,
-                   shadowTargetRect,
-                   (std::max)(0.0f, cornerRadiusDip - material.shadowInsetDip),
-                   material.shadowYOffsetDip,
-                   material.shadowSpreadDip,
-                   material.shadowOuterOpacity,
-                   material.shadowInnerOpacity);
-
-    PaintComboBoxBackdropSurface(host, capture, cachedBitmap, cachedDevice, popupRect, cornerRadiusDip, material);
-    DrawRoundedRect(host, popupRect, material.baseFill, D2D1::ColorF(0, 0, 0, 0), cornerRadiusDip);
-
-    if (wil::com_ptr<ID2D1LinearGradientBrush> glazeBrush = CreateComboBoxVerticalGradientBrush(
-            dc, popupRect, material.glazeTop, material.glazeMid, D2D1::ColorF(material.glazeMid.r, material.glazeMid.g, material.glazeMid.b, 0.0f)))
-    {
-        dc->FillRoundedRectangle(popupRounded, glazeBrush.get());
-    }
-
-    if (wil::com_ptr<ID2D1LinearGradientBrush> bottomShadeBrush = CreateComboBoxVerticalGradientBrush(
-            dc,
-            popupRect,
-            D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, 0.0f),
-            D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, material.bottomShade.a * 0.35f),
-            material.bottomShade))
-    {
-        dc->FillRoundedRectangle(popupRounded, bottomShadeBrush.get());
-    }
-
-    if (auto* const topRimBrush = host.GetSolidBrush(material.topRim))
-    {
-        const float rimY = popupRect.top + 1.0f;
-        dc->DrawLine(
-            D2D1::Point2F(popupRect.left + cornerRadiusDip - 1.0f, rimY), D2D1::Point2F(popupRect.right - cornerRadiusDip + 1.0f, rimY), topRimBrush, 1.0f);
-    }
-
-    if (auto* const outerBorderBrush = host.GetSolidBrush(material.outerBorder))
-    {
-        dc->DrawRoundedRectangle(popupRounded, outerBorderBrush, 1.0f);
-    }
-
-    if (auto* const innerBorderBrush = host.GetSolidBrush(material.innerBorder))
-    {
-        dc->DrawRoundedRectangle(innerRounded, innerBorderBrush, 1.0f);
-    }
-}
 } // namespace
 
 ComboBox::ComboBox() : _text(EmptySharedText())
@@ -955,13 +773,24 @@ void ComboBox::PaintOverlay(ControlHost& host) const
         ResolveComboBoxVisualStyle(theme, GetVariant(), IsEnabled(), IsHovered(), true, HasFocus(), host.IsKeyboardFocusVisible());
     const D2D1_RECT_F popup                   = SnapRectToPixel(host, GetPopupBounds());
     const ComboBoxPopupMaterialStyle material = ResolveComboBoxPopupMaterialStyle(theme, style);
-    PaintComboBoxPopupMaterialSurface(host,
-                                      _popupUsesBackdropBlur ? &_popupBackdropCapture : nullptr,
-                                      _popupBackdropBitmap,
-                                      _popupBackdropDevice,
-                                      popup,
-                                      kComboBoxPopupCornerRadiusDip,
-                                      material);
+    ID2D1Bitmap1* const backdrop              = _popupUsesBackdropBlur && material.backdropOpacity > 0.0f && material.backdropBlurDip > 0.0f
+                                                    ? EnsureComboBoxBackdropBitmap(host, _popupBackdropCapture, _popupBackdropBitmap, _popupBackdropDevice)
+                                                    : nullptr;
+    if (! _popupSurfaceCache && ! Detail::g_paintVerificationActive) // a verifier's reference paint keeps nothing
+    {
+        try
+        {
+            _popupSurfaceCache.reset(new PopupSurfaceCache());
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation(sizeof(PopupSurfaceCache));
+        }
+    }
+    // The list is drawn over the view's content: its shadow passes run each paint, from retained objects (W2.4).
+    PopupSurfaceCache unused;
+    PaintPopupMaterialSurface(
+        host, _popupSurfaceCache ? *_popupSurfaceCache : unused, backdrop, popup, kComboBoxPopupCornerRadiusDip, material, PopupShadowTarget::OverContent);
     const std::optional<size_t> highlightedPopupIndex = GetHighlightedPopupIndex();
     const bool drawScrollbar                          = HasPopupScrollbar();
     const D2D1_RECT_F popupScrollbar                  = drawScrollbar ? GetPopupScrollbarRect() : D2D1::RectF();
@@ -2602,6 +2431,8 @@ void ComboBox::ResetPopupLayout() noexcept
     _popupBackdropCapture        = {};
     _popupBackdropBitmap.reset();
     _popupBackdropDevice.reset();
+    // A closed popup keeps nothing of its surface (W2.4).
+    _popupSurfaceCache.reset();
 }
 
 void ComboBox::OpenPopup(ControlHost& host) noexcept

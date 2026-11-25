@@ -202,6 +202,15 @@ resolved the repeated common-scene memory flag and removed its waiver. The
 records that evidence and the separately accepted cost of plain-menu accessibility. Consumer platform/input/AT
 qualification remains open in the menu description plan.
 
+## Popup backdrops
+
+With a translucent overlay material (`OverlayMaterial::Mica`, `MicaAlt` or `Acrylic`), a `ComboBox` list and a native
+menu popup show a blurred picture of what lay behind them. Known limitation: that picture is taken when the popup opens (and
+again when a menu popup moves or resizes) and is kept as it was; content that changes behind an open popup, an animation or
+a value updated by your application, does not show through it until the popup is opened again. Plan item W5.12 replaces
+the capture so that the backdrop follows the content. The `Solid` material (the default) shows no backdrop and is not
+affected. The [contract](../Specs/Core/Core_PerformanceAndResources.md#popup-surfaces) lists what makes the picture again.
+
 ## Editable values
 
 ```cpp

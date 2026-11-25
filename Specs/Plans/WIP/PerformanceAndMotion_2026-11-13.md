@@ -582,7 +582,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     diagram preparations 0 and image upload bytes 0 (both counters added); geometry and WARP pixels equal a fresh
     preparation of the edited document; deleting a formula releases its prepared object at publication.
   - **Needs**: `W0.4`. **Size**: M.
-- [ ] **W2.4 Popup paint and devices.**
+- [x] **W2.4 Popup paint and devices.**
   - **Why**: every popup paint re-blurs a static capture (`DxUi.ComboBox.cpp:348`, `DxUi.Menu.cpp:717`, `DxUi.cpp:179`),
     runs two shadow passes, each a `CreateCommandList` plus a shadow effect (`DxUi.Controls.cpp:258`, `:283`, `:804-805`),
     and recreates `CreateLayer`, rounded geometry, two stop collections and gradient brushes (`DxUi.ComboBox.cpp:341`,

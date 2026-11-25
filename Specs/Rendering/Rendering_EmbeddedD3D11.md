@@ -60,6 +60,15 @@ Share an explicit GraphicsDevice pool among views using the same device generati
 focus/capture, drafts and surface. Release old-generation graphics references on device loss while retaining logical
 state. Graphics recovery must not execute unrelated application operations. Surface loss, hiding and zero-size suspension cancel composition and retire old text-session and dispatch tokens while retaining a still-owned logical focus. A successful visible sized preparation creates a fresh input session for that focus; explicit CancelTextInput on OS focus loss still clears it.
 
+A native popup the application opens on the view's thread (a `ContextMenu` on its own window) is a native host: it renders
+with that thread's shared native device stack, never with the view's device, as the
+[Win32 host contract](Rendering_Win32Host.md#shared-device-stack) states. While at least one `EmbeddedHost` is attached on
+the thread, that stack is kept after the popup closes, so later menus create no device; it is released when the last such
+view detaches and no native host is attached, at thread exit, on device loss and by the retained-resource drop. Nothing is
+created early: a thread that never opens a native popup never has one. The stack stays native-host state: the view creates
+no device, swap chain, window, timer or thread for it, never draws its own surface with it, and the stack never touches the
+application's device or immediate context; the view's `ReplaceDevice` does not affect it.
+
 Device replacement and detach release the view's owned targets, surfaces and graphics references without calling
 ClearState or Flush on the application's supplied immediate context. Native swap-chain retirement owns that
 cleanup separately. This preserves application bindings during retirement; Composite still binds its documented

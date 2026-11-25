@@ -1272,8 +1272,11 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> RichCodeBlocksScript
 
 // The registry's rows read populated before the drop on the controls and rich scenes together, except those the scenes
 // cannot populate (listed with the reason). A row that reads 0 on a scene that exercises it is not counting what it drops.
-inline constexpr std::array<std::string_view, 7u> kRowsNotPopulatedByScenes{
+inline constexpr std::array<std::string_view, 10u> kRowsNotPopulatedByScenes{
     "ComboBox._popupBackdropBitmap",    // Solid overlay material: no backdrop is captured.
+    "ComboBox._popupSurfaceCache",      // No popup is open before the drop (Embedded.Tests.PopupSurfaces.h counts and drops it).
+    "MenuPopup.surfaceCache",           // No native menu popup in the scenes (Embedded.Tests.PopupSurfaces.h covers the surface).
+    "SharedDeviceStack.retained",       // No native popup closes under an EmbeddedHost in the scenes (Controls.Tests.SharedDeviceStack.cpp).
     "ComboBox._popupItemWidthCache",    // Measured only for an open popup; the combo-popup and interaction scripts open it.
     "ComboBox._popupLayoutCache",       // A bounds change drops the placement and a closed popup is not placed again (same scripts).
     "ColorPicker._saturationBrush",     // No ColorPicker in the scenes (its own suite covers its brushes).

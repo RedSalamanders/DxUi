@@ -432,6 +432,17 @@ Use WIL for owned COM/Windows resources and `unique_ptr` for the control tree. D
 ownership through a plugin ABI: source, archive, toolchain and runtime must match within the consuming module.
 The [sample host](../Samples/EmbeddedControls/Main.cpp) demonstrates application-owned device/window lifetime.
 
+A native popup you open from an embedded application (a `ContextMenu` on your own window) is a native host and renders with
+its thread's own native device stack, never with your device. While an `EmbeddedHost` is attached on that thread, DxUi
+keeps that stack after the menu closes, so each later menu opens without creating a device (about 100 ms saved per menu on
+the hardware measured). After your first menu the thread therefore holds it: on that hardware about 15 to 19 MiB of
+private bytes and about 8 MiB of video memory, about 1.7 MiB on WARP
+([measurement](../Measurements/PerformanceAndMotion_2026-11-13/W2.4/README.md)). It is released when your last view on
+the thread detaches, when the thread exits, and on device loss. A thread that never opens a native popup never has one.
+To give the memory back earlier, call `DxUi::ReleaseRetainedNativeDeviceStack()` on that thread while no native window host
+or popup is open there (it returns false and does nothing otherwise); the next menu creates the stack again. The views' `ReplaceDevice` does not affect it, and nothing of it touches your device or immediate context
+([contract](../Specs/Rendering/Rendering_Win32Host.md#shared-device-stack)).
+
 ### Embedded text-state transport
 
 `ReadTextInput` returns an owned snapshot of the available focused control, a view revision and caret/viewport

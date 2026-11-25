@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <cwctype>
 #include <exception>
 #include <limits>
@@ -81,6 +83,7 @@ void TransientSurfaceBackdrop::SetCapture(WindowHostBitmapCapture value) noexcep
     capture = std::move(value);
     cachedBitmap.reset();
     cachedDevice.reset();
+    ReleaseRetainedBlur();
 }
 
 void TransientSurfaceBackdrop::Reset() noexcept
@@ -88,6 +91,16 @@ void TransientSurfaceBackdrop::Reset() noexcept
     capture = {};
     cachedBitmap.reset();
     cachedDevice.reset();
+    ReleaseRetainedBlur();
+}
+
+void TransientSurfaceBackdrop::ReleaseRetainedBlur() noexcept
+{
+    cachedClipGeometry.reset();
+    cachedClipShape = {};
+    cachedBlurredBitmap.reset();
+    cachedBlurSource.reset();
+    cachedBlurDip = 0.0f;
 }
 
 bool TransientSurfaceBackdrop::HasCapture() const noexcept
@@ -171,42 +184,673 @@ void PaintTransientSurfaceBackdrop(ControlHost& host, const D2D1_RECT_F& surface
         return;
     }
 
+    if (Detail::ArePopupSurfacesUncachedForTest() || Detail::g_paintVerificationActive)
+    {
+        PopupBackdropState fresh{};
+        PaintPopupBackdropLayer(host, *dc, fresh, bitmap, surfaceRect, cornerRadiusDip, opacity, blurDip, 0.0f, false, false);
+        return;
+    }
+    // A capture bitmap made again (a new capture, a new device) takes what was made from the old one with it: the clip
+    // belongs to that device's factory, the blurred bitmap to its device and capture.
+    if (backdrop->cachedBlurSource.get() != bitmap)
+        backdrop->ReleaseRetainedBlur();
+    PopupBackdropState state{};
+    state.clipGeometry  = std::move(backdrop->cachedClipGeometry);
+    state.clipShape     = backdrop->cachedClipShape;
+    state.blurredBitmap = std::move(backdrop->cachedBlurredBitmap);
+    state.blurSource    = std::move(backdrop->cachedBlurSource);
+    state.blurDip       = backdrop->cachedBlurDip;
+    // As a popup's backdrop: the clip and the blurred capture are kept, made before the layer is drawn (a verifier's reference
+    // paint makes nothing), and every paint draws from them, its first included, so whole and region frames draw the same.
+    if (! Detail::g_paintVerificationActive)
+    {
+        static_cast<void>(EnsurePopupClipGeometry(*dc, state, D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip)));
+        EnsurePopupBlurredBackdrop(host, *dc, state, bitmap, blurDip);
+    }
+    const D2D1_ROUNDED_RECT shape = D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip);
+    if (state.clipGeometry && std::memcmp(&state.clipShape, &shape, sizeof(shape)) == 0)
+        PaintPopupBackdropLayer(host, *dc, state, bitmap, surfaceRect, cornerRadiusDip, opacity, blurDip, 0.0f, true, false);
+    else
+    {
+        PopupBackdropState fresh{};
+        PaintPopupBackdropLayer(host, *dc, fresh, bitmap, surfaceRect, cornerRadiusDip, opacity, blurDip, 0.0f, false, false);
+    }
+    backdrop->cachedClipGeometry  = std::move(state.clipGeometry);
+    backdrop->cachedClipShape     = state.clipShape;
+    backdrop->cachedBlurredBitmap = std::move(state.blurredBitmap);
+    backdrop->cachedBlurSource    = bitmap; // everything above was made from this capture's bitmap
+    backdrop->cachedBlurDip       = state.blurDip;
+}
+} // namespace
+
+namespace
+{
+[[nodiscard]] bool SameColor(const D2D1_COLOR_F& a, const D2D1_COLOR_F& b) noexcept
+{
+    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
+
+[[nodiscard]] bool SameRoundedRect(const D2D1_ROUNDED_RECT& a, const D2D1_ROUNDED_RECT& b) noexcept
+{
+    return a.rect.left == b.rect.left && a.rect.top == b.rect.top && a.rect.right == b.rect.right && a.rect.bottom == b.rect.bottom && a.radiusX == b.radiusX &&
+           a.radiusY == b.radiusY;
+}
+
+[[nodiscard]] bool SameMatrix(const D2D1_MATRIX_3X2_F& a, const D2D1_MATRIX_3X2_F& b) noexcept
+{
+    return a._11 == b._11 && a._12 == b._12 && a._21 == b._21 && a._22 == b._22 && a._31 == b._31 && a._32 == b._32;
+}
+
+[[nodiscard]] bool IsTranslation(const D2D1_MATRIX_3X2_F& m) noexcept
+{
+    return m._11 == 1.0f && m._12 == 0.0f && m._21 == 0.0f && m._22 == 1.0f;
+}
+
+[[nodiscard]] uint64_t PixelBytes(ID2D1Bitmap1* bitmap) noexcept
+{
+    if (! bitmap)
+        return 0u;
+    const D2D1_SIZE_U size = bitmap->GetPixelSize();
+    return uint64_t(size.width) * size.height * 4u;
+}
+
+// A 32-bit premultiplied bitmap the context can draw into, at the context's DPI.
+[[nodiscard]] wil::com_ptr<ID2D1Bitmap1> CreatePopupTargetBitmap(ID2D1DeviceContext& dc, UINT32 widthPx, UINT32 heightPx) noexcept
+{
+    float dpiX = 96.0f;
+    float dpiY = 96.0f;
+    dc.GetDpi(&dpiX, &dpiY);
+    const D2D1_BITMAP_PROPERTIES1 properties =
+        D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), dpiX, dpiY);
+    wil::com_ptr<ID2D1Bitmap1> bitmap;
+    if (FAILED(CountedCreateBitmap(&dc, D2D1::SizeU(widthPx, heightPx), nullptr, 0u, &properties, bitmap.put())))
+        return {};
+    return bitmap;
+}
+
+} // namespace
+
+namespace
+{
+// The capture's blur, made for one draw (the code before W2.4, and every popup not on the target's pixel grid).
+[[nodiscard]] wil::com_ptr<ID2D1Effect> CreatePopupBlurEffect(ID2D1DeviceContext& dc, ID2D1Bitmap1* source, float blurDip) noexcept
+{
+    wil::com_ptr<ID2D1Effect> effect;
+    if (FAILED(CountedCreateEffect(&dc, kTransientSurfaceGaussianBlurEffectId, effect.put())) || ! effect)
+        return {};
+    effect->SetInput(0u, source);
+    effect->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, blurDip);
+    effect->SetValue(D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED);
+    effect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
+    return effect;
+}
+} // namespace
+
+uint64_t PopupResourceCreations() noexcept
+{
+    const auto& r = Detail::Work().resources;
+    return r.effect.created + r.commandList.created + r.layer.created + r.geometry.created + r.gradientStops.created + r.brush.created + r.bitmap.created +
+           r.deviceContext.created;
+}
+
+bool EnsurePopupClipGeometry(ID2D1DeviceContext& dc, PopupBackdropState& state, const D2D1_ROUNDED_RECT& shape) noexcept
+{
+    if (state.clipGeometry && SameRoundedRect(state.clipShape, shape))
+        return true;
+    state.clipGeometry.reset();
     wil::com_ptr<ID2D1Factory> factory;
-    dc->GetFactory(factory.put());
-    wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory ||
-        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
-        ! roundedGeometry)
+    dc.GetFactory(factory.put());
+    if (! factory || FAILED(CountedCreateRoundedRectangleGeometry(factory, shape, state.clipGeometry.put())) || ! state.clipGeometry)
     {
-        return;
+        state.clipGeometry.reset();
+        return false;
     }
-
-    wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(CountedCreateEffect(dc, kTransientSurfaceGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
+    state.clipShape = shape;
+    return true;
+}
+// The capture blurred once into a bitmap of its size, made on the frame's context before the surface draws and drawn at the
+// popup's position in every paint. Direct2D's blur result depends on the paint clip, so a blur drawn for each paint differs
+// between a whole frame and a frame that repaints a region; the kept result is the same in both (developer's decision of 25
+// November 2026, W2.4). Never made in a verifier's reference paint.
+void EnsurePopupBlurredBackdrop(ControlHost& host, ID2D1DeviceContext& dc, PopupBackdropState& state, ID2D1Bitmap1* source, float blurDip) noexcept
+{
+    if (Detail::g_paintVerificationActive)
+        return;
+    float dpiX = 96.0f;
+    float dpiY = 96.0f;
+    dc.GetDpi(&dpiX, &dpiY);
+    float blurredDpiX = 0.0f;
+    float blurredDpiY = 0.0f;
+    if (state.blurredBitmap)
+        state.blurredBitmap->GetDpi(&blurredDpiX, &blurredDpiY);
+    if (state.blurredBitmap && state.blurSource.get() == source && state.blurDip == blurDip && blurredDpiX == dpiX && blurredDpiY == dpiY)
+        return;
+    state.blurredBitmap.reset();
+    state.blurSource.reset();
+    const D2D1_SIZE_U sourcePx        = source->GetPixelSize();
+    wil::com_ptr<ID2D1Effect> blur    = CreatePopupBlurEffect(dc, source, blurDip);
+    wil::com_ptr<ID2D1Bitmap1> bitmap = blur ? CreatePopupTargetBitmap(dc, sourcePx.width, sourcePx.height) : nullptr;
+    if (! bitmap)
+        return;
+    const D2D1_RECT_F sourceRect =
+        D2D1::RectF(0.0f, 0.0f, host.PixelsToDip(static_cast<float>(sourcePx.width)), host.PixelsToDip(static_cast<float>(sourcePx.height)));
+    wil::com_ptr<ID2D1Image> previousTarget;
+    dc.GetTarget(previousTarget.put());
+    D2D1_MATRIX_3X2_F transform{};
+    dc.GetTransform(&transform);
+    dc.SetTarget(bitmap.get());
+    dc.SetTransform(D2D1::Matrix3x2F::Identity());
+    dc.Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f));
+    dc.DrawImage(blur.get(), nullptr, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
+    dc.SetTransform(transform);
+    dc.SetTarget(previousTarget.get());
+    state.blurredBitmap = std::move(bitmap);
+    state.blurSource    = source;
+    state.blurDip       = blurDip;
+}
+// The blurred backdrop inside its rounded layer (ComboBox list, menu popup, transient surface). `retain` false is the code
+// before W2.4: geometry and effect made for this paint and (createLayer) a created layer. Retained: the clip geometry and
+// the blur effect are kept. The blur itself runs every paint: no retained form of its result draws the per-paint pixels on
+// every host (W2.4 receipt).
+void PaintPopupBackdropLayer(ControlHost& host,
+                             ID2D1DeviceContext& dc,
+                             PopupBackdropState& state,
+                             ID2D1Bitmap1* source,
+                             const D2D1_RECT_F& rect,
+                             float cornerRadiusDip,
+                             float opacity,
+                             float blurDip,
+                             float detailOpacity,
+                             bool retain,
+                             bool createLayer) noexcept
+{
+    if (! EnsurePopupClipGeometry(dc, state, D2D1::RoundedRect(rect, cornerRadiusDip, cornerRadiusDip)))
+        return;
+    // Retained: the blurred bitmap (EnsurePopupBlurredBackdrop). The per-paint code blurs for this paint.
+    ID2D1Bitmap1* const blurred = retain && state.blurSource.get() == source && state.blurDip == blurDip ? state.blurredBitmap.get() : nullptr;
+    wil::com_ptr<ID2D1Effect> blur;
+    if (! blurred)
     {
-        return;
+        blur = CreatePopupBlurEffect(dc, source, blurDip);
+        if (! blur)
+            return;
     }
-    blurEffect->SetInput(0u, bitmap);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, blurDip);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
-
-    const D2D1_RECT_F sourceRect = D2D1::RectF(
-        0.0f, 0.0f, host.PixelsToDip(static_cast<float>(backdrop->capture.widthPx)), host.PixelsToDip(static_cast<float>(backdrop->capture.heightPx)));
-    const D2D1_LAYER_PARAMETERS1 layerParameters = D2D1::LayerParameters1(surfaceRect,
-                                                                          roundedGeometry.get(),
+    wil::com_ptr<ID2D1Layer> layer;
+    if (createLayer && (FAILED(CountedCreateLayer(&dc, layer.put())) || ! layer))
+        return;
+    const D2D1_SIZE_U sourcePx = source->GetPixelSize();
+    const D2D1_RECT_F sourceRect =
+        D2D1::RectF(0.0f, 0.0f, host.PixelsToDip(static_cast<float>(sourcePx.width)), host.PixelsToDip(static_cast<float>(sourcePx.height)));
+    const D2D1_POINT_2F targetOffset             = D2D1::Point2F(rect.left, rect.top);
+    const D2D1_LAYER_PARAMETERS1 layerParameters = D2D1::LayerParameters1(rect,
+                                                                          state.clipGeometry.get(),
                                                                           D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
                                                                           D2D1::Matrix3x2F::Identity(),
                                                                           std::clamp(opacity, 0.0f, 1.0f),
                                                                           nullptr,
                                                                           D2D1_LAYER_OPTIONS1_NONE);
-    const D2D1_POINT_2F targetOffset             = D2D1::Point2F(surfaceRect.left, surfaceRect.top);
-    dc->PushLayer(layerParameters, nullptr);
-    dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
-    ++Detail::Work().popups.backdropBlurPasses;
-    dc->PopLayer();
+    dc.PushLayer(layerParameters, layer.get());
+    if (blurred)
+    {
+        dc.DrawImage(blurred, &targetOffset, nullptr, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    }
+    else
+    {
+        dc.DrawImage(blur.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+        ++Detail::Work().popups.backdropBlurPasses;
+    }
+    if (detailOpacity > 0.0f)
+    {
+        dc.DrawBitmap(source, rect, std::clamp(detailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);
+    }
+    dc.PopLayer();
+}
+namespace
+{
+constexpr GUID kPopupShadowEffectId = {0xC67EA361, 0x1863, 0x4e69, {0x89, 0xDB, 0x69, 0x5D, 0x3E, 0x9A, 0x5B, 0x6B}};
+
+// Records the pass's mask and makes its effect, as DrawShadowEffectPass does for one paint; kept while the shape and the
+// transform the mask was recorded under stay the same.
+[[nodiscard]] bool EnsurePopupShadowPass(ControlHost& host,
+                                         ID2D1DeviceContext& dc,
+                                         PopupShadowPass& pass,
+                                         const D2D1_RECT_F& targetRect,
+                                         float cornerRadiusDip,
+                                         float blurDip,
+                                         float opacity) noexcept
+{
+    if (blurDip <= 0.0f || opacity <= 0.0f)
+        return false;
+    D2D1_MATRIX_3X2_F transform{};
+    dc.GetTransform(&transform);
+    const D2D1_ROUNDED_RECT shape = D2D1::RoundedRect(targetRect, cornerRadiusDip, cornerRadiusDip);
+    if (! pass.mask || ! SameRoundedRect(pass.shape, shape) || ! SameMatrix(pass.transform, transform))
+    {
+        // The new mask is made before the old one is released, so the caller can tell them apart by address.
+        wil::com_ptr<ID2D1Image> previousTarget;
+        dc.GetTarget(previousTarget.put());
+        wil::com_ptr<ID2D1CommandList> mask;
+        if (FAILED(CountedCreateCommandList(&dc, mask.put())) || ! mask)
+            return false;
+        dc.SetTarget(mask.get());
+        const auto restoreTarget = wil::scope_exit([&]() noexcept { dc.SetTarget(previousTarget.get()); });
+        dc.Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f));
+        auto* const maskBrush = host.GetSolidBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f));
+        if (! maskBrush)
+            return false;
+        dc.FillRoundedRectangle(shape, maskBrush);
+        dc.SetTarget(previousTarget.get());
+        if (FAILED(mask->Close()))
+            return false;
+        pass.mask      = std::move(mask);
+        pass.shape     = shape;
+        pass.transform = transform;
+        if (pass.effect)
+            pass.effect->SetInput(0u, pass.mask.get());
+    }
+    if (! pass.effect)
+    {
+        if (FAILED(CountedCreateEffect(&dc, kPopupShadowEffectId, pass.effect.put())) || ! pass.effect)
+        {
+            pass.effect.reset();
+            return false;
+        }
+        // In DrawShadowEffectPass's order.
+        pass.effect->SetInput(0u, pass.mask.get());
+        pass.effect->SetValue(D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, blurDip);
+        pass.effect->SetValue(D2D1_SHADOW_PROP_COLOR, D2D1::Vector4F(0.0f, 0.0f, 0.0f, opacity));
+        pass.effect->SetValue(D2D1_SHADOW_PROP_OPTIMIZATION, D2D1_SHADOW_OPTIMIZATION_QUALITY);
+        pass.blurDip = blurDip;
+        pass.opacity = opacity;
+    }
+    if (pass.blurDip != blurDip)
+    {
+        pass.effect->SetValue(D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, blurDip);
+        pass.blurDip = blurDip;
+    }
+    if (pass.opacity != opacity)
+    {
+        pass.effect->SetValue(D2D1_SHADOW_PROP_COLOR, D2D1::Vector4F(0.0f, 0.0f, 0.0f, opacity));
+        pass.opacity = opacity;
+    }
+    return true;
+}
+
+// DrawShadowEffectPass switches the target to record each mask just before it draws, which flushes the drawing batched before
+// the pass; a retained pass flushes there too, so its draw meets the target as the per-paint pass did.
+void DrawPopupShadowPass(ID2D1DeviceContext& dc, const PopupShadowPass& pass, float yOffsetDip) noexcept
+{
+    static_cast<void>(dc.Flush());
+    const D2D1_POINT_2F offset = D2D1::Point2F(0.0f, yOffsetDip);
+    dc.DrawImage(pass.effect.get(), &offset, nullptr, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().frame.shadowPasses;
+}
+
+// OverClearedSurface: both passes rendered once into a bitmap that starts at the target's device pixel (0,0), under the same
+// transform, so its pixels are those the passes leave on cleared transparent pixels; drawn back at (0,0) unscaled.
+[[nodiscard]] ID2D1Bitmap1* EnsurePopupShadowBitmap(ID2D1DeviceContext& dc, PopupSurfaceCache& cache, float yOffsetDip) noexcept
+{
+    if (cache.shadowBitmap && cache.shadowYOffsetDip == yOffsetDip)
+        return cache.shadowBitmap.get();
+    cache.shadowBitmap.reset();
+    wil::com_ptr<ID2D1Image> previousTarget;
+    dc.GetTarget(previousTarget.put());
+    wil::com_ptr<ID2D1Bitmap> targetBitmap;
+    if (! previousTarget || FAILED(previousTarget->QueryInterface(IID_PPV_ARGS(targetBitmap.put()))) || ! targetBitmap)
+        return nullptr;
+    const D2D1_SIZE_U targetPx = targetBitmap->GetPixelSize();
+    float dpiX                 = 96.0f;
+    float dpiY                 = 96.0f;
+    dc.GetDpi(&dpiX, &dpiY);
+    D2D1_RECT_F bounds{};
+    for (const PopupShadowPass& pass : cache.passes)
+    {
+        D2D1_RECT_F passBounds{};
+        wil::com_ptr<ID2D1Image> output;
+        pass.effect->GetOutput(output.put());
+        if (! output || FAILED(dc.GetImageWorldBounds(output.get(), &passBounds)))
+            return nullptr;
+        bounds.right  = (std::max)(bounds.right, passBounds.right);
+        bounds.bottom = (std::max)(bounds.bottom, passBounds.bottom + yOffsetDip);
+    }
+    const auto extentPx = [](float dip, float dpi, UINT32 limit) noexcept
+    { return static_cast<UINT32>(std::clamp(std::ceil(dip * dpi / 96.0f) + 1.0f, 1.0f, static_cast<float>((std::max)(limit, 1u)))); };
+    wil::com_ptr<ID2D1Bitmap1> bitmap =
+        CreatePopupTargetBitmap(dc, extentPx(bounds.right, dpiX, targetPx.width), extentPx(bounds.bottom, dpiY, targetPx.height));
+    if (! bitmap)
+        return nullptr;
+    dc.SetTarget(bitmap.get());
+    dc.Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f));
+    DrawPopupShadowPass(dc, cache.passes[0], yOffsetDip);
+    DrawPopupShadowPass(dc, cache.passes[1], yOffsetDip);
+    dc.SetTarget(previousTarget.get());
+    cache.shadowBitmap     = std::move(bitmap);
+    cache.shadowYOffsetDip = yOffsetDip;
+    return cache.shadowBitmap.get();
+}
+
+// Makes (or keeps) both passes of DrawDropShadow and, over a cleared surface, the bitmap they are rendered into. False when
+// a pass cannot be made or has nothing to draw: the caller then draws DrawDropShadow itself.
+[[nodiscard]] bool PreparePopupShadow(ControlHost& host,
+                                      ID2D1DeviceContext& dc,
+                                      PopupSurfaceCache& cache,
+                                      const D2D1_RECT_F& targetRect,
+                                      float cornerRadiusDip,
+                                      float yOffsetDip,
+                                      float spreadDip,
+                                      float outerOpacity,
+                                      float innerOpacity,
+                                      PopupShadowTarget shadowTarget) noexcept
+{
+    const D2D1_RECT_F innerTargetRect       = D2D1::RectF(targetRect.left - 0.5f, targetRect.top - 0.5f, targetRect.right + 0.5f, targetRect.bottom + 0.5f);
+    const float innerBlurDip                = (std::max)(1.0f, spreadDip * 0.4f);
+    const float innerCornerRadiusDip        = cornerRadiusDip + 0.5f;
+    const ID2D1CommandList* const outerMask = cache.passes[0].mask.get();
+    const ID2D1CommandList* const innerMask = cache.passes[1].mask.get();
+    const ID2D1Effect* const outerEffect    = cache.passes[0].effect.get();
+    const ID2D1Effect* const innerEffect    = cache.passes[1].effect.get();
+    const float previousValues[4]           = {cache.passes[0].blurDip, cache.passes[0].opacity, cache.passes[1].blurDip, cache.passes[1].opacity};
+    if (! EnsurePopupShadowPass(host, dc, cache.passes[0], targetRect, cornerRadiusDip, spreadDip, outerOpacity) ||
+        ! EnsurePopupShadowPass(host, dc, cache.passes[1], innerTargetRect, innerCornerRadiusDip, innerBlurDip, innerOpacity))
+    {
+        cache.shadowBitmap.reset();
+        return false;
+    }
+    // Any pass input changed: the bitmap rendered from the old passes goes.
+    if (cache.passes[0].mask.get() != outerMask || cache.passes[1].mask.get() != innerMask || cache.passes[0].effect.get() != outerEffect ||
+        cache.passes[1].effect.get() != innerEffect || previousValues[0] != cache.passes[0].blurDip || previousValues[1] != cache.passes[0].opacity ||
+        previousValues[2] != cache.passes[1].blurDip || previousValues[3] != cache.passes[1].opacity)
+        cache.shadowBitmap.reset();
+    D2D1_MATRIX_3X2_F transform{};
+    dc.GetTransform(&transform);
+    if (shadowTarget == PopupShadowTarget::OverClearedSurface && IsTranslation(transform))
+        static_cast<void>(EnsurePopupShadowBitmap(dc, cache, yOffsetDip));
+    return true;
+}
+
+// Draws the prepared shadow: the bitmap over a cleared surface, else both passes.
+void DrawPreparedPopupShadow(ID2D1DeviceContext& dc, const PopupSurfaceCache& cache, float yOffsetDip, PopupShadowTarget shadowTarget) noexcept
+{
+    D2D1_MATRIX_3X2_F transform{};
+    dc.GetTransform(&transform);
+    if (shadowTarget == PopupShadowTarget::OverClearedSurface && IsTranslation(transform) && cache.shadowBitmap && cache.shadowYOffsetDip == yOffsetDip)
+    {
+        dc.SetTransform(D2D1::Matrix3x2F::Identity());
+        dc.DrawImage(cache.shadowBitmap.get(), nullptr, nullptr, D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+        dc.SetTransform(transform);
+        // The per-paint passes switch the target to record their masks, which flushes the batch; the bitmap's draw is
+        // flushed too, so what follows blends as it did after them.
+        static_cast<void>(dc.Flush());
+        return;
+    }
+    DrawPopupShadowPass(dc, cache.passes[0], yOffsetDip);
+    DrawPopupShadowPass(dc, cache.passes[1], yOffsetDip);
+}
+
+[[nodiscard]] ID2D1LinearGradientBrush* EnsurePopupGradient(ID2D1DeviceContext& dc,
+                                                            PopupGradient& gradient,
+                                                            const D2D1_RECT_F& rect,
+                                                            const D2D1_COLOR_F (&colors)[3]) noexcept
+{
+    if (! gradient.stops || ! SameColor(gradient.colors[0], colors[0]) || ! SameColor(gradient.colors[1], colors[1]) ||
+        ! SameColor(gradient.colors[2], colors[2]))
+    {
+        gradient.stops.reset();
+        gradient.brush.reset();
+        const D2D1_GRADIENT_STOP stops[3] = {
+            D2D1::GradientStop(0.0f, colors[0]),
+            D2D1::GradientStop(0.42f, colors[1]),
+            D2D1::GradientStop(1.0f, colors[2]),
+        };
+        if (FAILED(CountedCreateGradientStopCollection(&dc, stops, static_cast<UINT32>(std::size(stops)), gradient.stops.put())) || ! gradient.stops)
+        {
+            gradient.stops.reset();
+            return nullptr;
+        }
+        std::copy(std::begin(colors), std::end(colors), std::begin(gradient.colors));
+    }
+    if (! gradient.brush)
+    {
+        if (FAILED(
+                CountedCreateLinearGradientBrush(&dc,
+                                                 D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)),
+                                                 gradient.stops.get(),
+                                                 gradient.brush.put())) ||
+            ! gradient.brush)
+        {
+            gradient.brush.reset();
+            return nullptr;
+        }
+    }
+    else if (gradient.left != rect.left || gradient.top != rect.top || gradient.bottom != rect.bottom)
+    {
+        gradient.brush->SetStartPoint(D2D1::Point2F(rect.left, rect.top));
+        gradient.brush->SetEndPoint(D2D1::Point2F(rect.left, rect.bottom));
+    }
+    gradient.left   = rect.left;
+    gradient.top    = rect.top;
+    gradient.bottom = rect.bottom;
+    return gradient.brush.get();
+}
+
+// The code before W2.4, kept as the oracle's reference (SetPopupSurfacesUncachedForTest): every object made for this paint.
+[[nodiscard]] wil::com_ptr<ID2D1LinearGradientBrush> CreatePopupGradientBrush(ID2D1DeviceContext& dc,
+                                                                              const D2D1_RECT_F& rect,
+                                                                              const D2D1_COLOR_F (&colors)[3]) noexcept
+{
+    PopupGradient fresh{};
+    if (! EnsurePopupGradient(dc, fresh, rect, colors))
+        return {};
+    return std::move(fresh.brush);
 }
 } // namespace
+
+void Detail::PopupSurfaceCacheDeleter::operator()(PopupSurfaceCache* cache) const noexcept
+{
+    delete cache;
+}
+
+void PopupSurfaceCache::Release() noexcept
+{
+    *this = PopupSurfaceCache{};
+}
+
+size_t PopupSurfaceCache::Entries() const noexcept
+{
+    const auto present = [](const auto& object) noexcept { return object ? size_t{1u} : size_t{0u}; };
+    return present(passes[0].mask) + present(passes[0].effect) + present(passes[1].mask) + present(passes[1].effect) + present(shadowBitmap) +
+           present(backdrop.clipGeometry) + present(backdrop.blurredBitmap) + present(glaze.stops) + present(glaze.brush) + present(shade.stops) +
+           present(shade.brush);
+}
+
+uint64_t PopupSurfaceCache::ResidentBytes() const noexcept
+{
+    return PixelBytes(shadowBitmap.get()) + PixelBytes(backdrop.blurredBitmap.get());
+}
+
+void PaintPopupMaterialSurface(ControlHost& host,
+                               PopupSurfaceCache& cache,
+                               ID2D1Bitmap1* backdrop,
+                               const D2D1_RECT_F& rect,
+                               float cornerRadiusDip,
+                               const PopupMaterialStyle& material,
+                               PopupShadowTarget shadowTarget) noexcept
+{
+    ID2D1DeviceContext* const dc = host.GetDeviceContext();
+    if (! dc)
+        return;
+
+    const D2D1_RECT_F shadowTargetRect   = InflateRect(rect, -material.shadowInsetDip, -material.shadowInsetDip);
+    const D2D1_ROUNDED_RECT rounded      = D2D1::RoundedRect(rect, cornerRadiusDip, cornerRadiusDip);
+    const D2D1_RECT_F innerRect          = InflateRect(rect, -1.0f, -1.0f);
+    const D2D1_ROUNDED_RECT innerRounded = D2D1::RoundedRect(innerRect, (std::max)(0.0f, cornerRadiusDip - 1.0f), (std::max)(0.0f, cornerRadiusDip - 1.0f));
+    const float shadowRadiusDip          = (std::max)(0.0f, cornerRadiusDip - material.shadowInsetDip);
+    const bool hasBackdrop               = backdrop && material.backdropOpacity > 0.0f && material.backdropBlurDip > 0.0f;
+    const D2D1_COLOR_F glazeColors[3]    = {
+        material.glazeTop, material.glazeMid, D2D1::ColorF(material.glazeMid.r, material.glazeMid.g, material.glazeMid.b, 0.0f)};
+    const D2D1_COLOR_F shadeColors[3] = {D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, 0.0f),
+                                         D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, material.bottomShade.a * 0.35f),
+                                         material.bottomShade};
+    wil::com_ptr<ID2D1LinearGradientBrush> freshGlaze;
+    wil::com_ptr<ID2D1LinearGradientBrush> freshShade;
+    ID2D1LinearGradientBrush* glaze = nullptr;
+    ID2D1LinearGradientBrush* shade = nullptr;
+
+    // The code before W2.4: every object made for this paint.
+    const auto paintPerPaint = [&]() noexcept
+    {
+        DrawDropShadow(host,
+                       shadowTargetRect,
+                       shadowRadiusDip,
+                       material.shadowYOffsetDip,
+                       material.shadowSpreadDip,
+                       material.shadowOuterOpacity,
+                       material.shadowInnerOpacity);
+        if (hasBackdrop)
+        {
+            PopupBackdropState fresh{};
+            PaintPopupBackdropLayer(host,
+                                    *dc,
+                                    fresh,
+                                    backdrop,
+                                    rect,
+                                    cornerRadiusDip,
+                                    material.backdropOpacity,
+                                    material.backdropBlurDip,
+                                    material.backdropDetailOpacity,
+                                    false,
+                                    true);
+        }
+        DrawRoundedRect(host, rect, material.baseFill, D2D1::ColorF(0, 0, 0, 0), cornerRadiusDip);
+        freshGlaze = CreatePopupGradientBrush(*dc, rect, glazeColors);
+        glaze      = freshGlaze.get();
+        if (glaze)
+            dc->FillRoundedRectangle(rounded, glaze);
+        freshShade = CreatePopupGradientBrush(*dc, rect, shadeColors);
+        shade      = freshShade.get();
+    };
+
+    // The oracle, and a reference paint before anything was kept, draw the per-paint way and touch nothing retained.
+    // The paint-region verifier's reference paint (W4.10) draws from what the frame kept, read-only (its reference means regions
+    // and culling off, not retention off): only when everything is there, so it makes, replaces or ages nothing.
+    const bool referenceFromRetained =
+        Detail::g_paintVerificationActive && cache.device && cache.passes[0].effect && cache.passes[1].effect && cache.glaze.brush && cache.shade.brush &&
+        (! hasBackdrop || (cache.backdrop.blurredBitmap && cache.backdrop.blurSource.get() == backdrop && cache.backdrop.clipGeometry &&
+                           SameRoundedRect(cache.backdrop.clipShape, D2D1::RoundedRect(rect, cornerRadiusDip, cornerRadiusDip))));
+    if (referenceFromRetained)
+    {
+        DrawPreparedPopupShadow(*dc, cache, material.shadowYOffsetDip, hasBackdrop ? PopupShadowTarget::OverClearedSurface : shadowTarget);
+        if (hasBackdrop)
+        {
+            PaintPopupBackdropLayer(host,
+                                    *dc,
+                                    cache.backdrop,
+                                    backdrop,
+                                    rect,
+                                    cornerRadiusDip,
+                                    material.backdropOpacity,
+                                    material.backdropBlurDip,
+                                    material.backdropDetailOpacity,
+                                    true,
+                                    false);
+        }
+        DrawRoundedRect(host, rect, material.baseFill, D2D1::ColorF(0, 0, 0, 0), cornerRadiusDip);
+        glaze = cache.glaze.brush.get();
+        shade = cache.shade.brush.get();
+        dc->FillRoundedRectangle(rounded, glaze);
+    }
+    else if (Detail::ArePopupSurfacesUncachedForTest() || Detail::g_paintVerificationActive)
+    {
+        paintPerPaint();
+    }
+    else
+    {
+        // Everything retained was made on one device context: another one (device loss, replacement) starts again.
+        wil::com_ptr<ID2D1Device> device;
+        dc->GetDevice(device.put());
+        if (cache.device.get() != device.get() || cache.context != dc)
+        {
+            cache.Release();
+            cache.device  = std::move(device);
+            cache.context = dc;
+        }
+        float dpiX = 96.0f;
+        float dpiY = 96.0f;
+        dc->GetDpi(&dpiX, &dpiY);
+        if (cache.dpi != dpiX)
+        {
+            cache.shadowBitmap.reset();
+            cache.dpi = dpiX;
+        }
+        // Everything is made (or kept) before the surface draws, then a frame that had to make anything draws the per-paint
+        // way: making objects records masks and switches targets, which changes how Direct2D batches and blends the draws
+        // around it (a level on a few pixels). A frame that made nothing draws only from what is retained, and draws exactly
+        // the per-paint pixels.
+        // Over a cleared surface the shadow is drawn from its bitmap, except under a blurred backdrop: the blur drawn after the
+        // bitmap differs from the blur drawn after the passes by a level on a pixel, so there the passes run.
+        const PopupShadowTarget shadowFromBitmap = hasBackdrop ? PopupShadowTarget::OverClearedSurface : shadowTarget;
+        const uint64_t createdBefore             = PopupResourceCreations();
+        const bool shadowReady                   = PreparePopupShadow(host,
+                                                                      *dc,
+                                                                      cache,
+                                                                      shadowTargetRect,
+                                                                      shadowRadiusDip,
+                                                                      material.shadowYOffsetDip,
+                                                                      material.shadowSpreadDip,
+                                                                      material.shadowOuterOpacity,
+                                                                      material.shadowInnerOpacity,
+                                                                      shadowFromBitmap);
+        if (hasBackdrop)
+        {
+            static_cast<void>(EnsurePopupClipGeometry(*dc, cache.backdrop, D2D1::RoundedRect(rect, cornerRadiusDip, cornerRadiusDip)));
+            EnsurePopupBlurredBackdrop(host, *dc, cache.backdrop, backdrop, material.backdropBlurDip);
+        }
+        glaze = EnsurePopupGradient(*dc, cache.glaze, rect, glazeColors);
+        shade = EnsurePopupGradient(*dc, cache.shade, rect, shadeColors);
+        // A blurred popup draws from what it keeps in every paint, its first included, so that every frame (whole or a region)
+        // draws the same blur and shadow.
+        if (! shadowReady || (PopupResourceCreations() != createdBefore && ! hasBackdrop))
+        {
+            glaze = nullptr;
+            shade = nullptr;
+            paintPerPaint();
+        }
+        else
+        {
+            DrawPreparedPopupShadow(*dc, cache, material.shadowYOffsetDip, shadowFromBitmap);
+            if (hasBackdrop)
+            {
+                PaintPopupBackdropLayer(host,
+                                        *dc,
+                                        cache.backdrop,
+                                        backdrop,
+                                        rect,
+                                        cornerRadiusDip,
+                                        material.backdropOpacity,
+                                        material.backdropBlurDip,
+                                        material.backdropDetailOpacity,
+                                        true,
+                                        false);
+            }
+            DrawRoundedRect(host, rect, material.baseFill, D2D1::ColorF(0, 0, 0, 0), cornerRadiusDip);
+            if (glaze)
+                dc->FillRoundedRectangle(rounded, glaze);
+        }
+    }
+    if (shade)
+        dc->FillRoundedRectangle(rounded, shade);
+
+    if (auto* const topRimBrush = host.GetSolidBrush(material.topRim))
+    {
+        const float rimY = rect.top + 1.0f;
+        dc->DrawLine(D2D1::Point2F(rect.left + cornerRadiusDip - 1.0f, rimY), D2D1::Point2F(rect.right - cornerRadiusDip + 1.0f, rimY), topRimBrush, 1.0f);
+    }
+    if (auto* const outerBorderBrush = host.GetSolidBrush(material.outerBorder))
+        dc->DrawRoundedRectangle(rounded, outerBorderBrush, 1.0f);
+    if (auto* const innerBorderBrush = host.GetSolidBrush(material.innerBorder))
+        dc->DrawRoundedRectangle(innerRounded, innerBorderBrush, 1.0f);
+}
 
 void PaintTransientSurface(ControlHost& host, const D2D1_RECT_F& surfaceRect, const TransientSurfaceOptions& options) noexcept
 {

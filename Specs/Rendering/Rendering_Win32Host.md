@@ -197,6 +197,15 @@ Every native render waits for a credit first or defers to the paced frame, so no
   `WM_SIZE` ever waits. A frame presented after a resize has the size the window has when it renders.
 - `RenderInitialFrameForShow` (the first frame before a show) waits at most 250 ms for a credit, because its caller shows the
   window next. A new chain already holds its first unit, so a first frame never waits.
+- A frame `RenderInitialFrameForShow` presented (`S_OK`) is shown without a second render while it is current: nothing
+  invalidated the host since the render began (host invalidations, and a menu popup's own `InvalidateRect`, advance one
+  epoch), and the chain, client size and DPI are those it rendered with. The window's next show then raises no visibility
+  invalidation, and its first `WM_PAINT` validates the update region without rendering (`frame.showPaintsValidated`), taking
+  no credit and deferring nothing; any render, hide or other paint ends that state, so a window hidden and shown again later
+  paints as before. A popup opened this way (`MenuPopup`, W2.4) renders once per open: its first frame spends the new
+  chain's initial unit, and after the open the pacer holds no deferred region and no armed wait. A change between that render
+  and the show (an invalidation, a size or a DPI change) renders exactly once more, at the show's paint or the next paced
+  frame. `MenuPopup` no longer invalidates its window after the show (`Controls.Tests.PopupShow.cpp`).
 - A diagnostic capture (`DebugCaptureBitmap`) renders and reads the back buffer and does not present: it neither takes nor
   needs a credit. A test render whose caller reads the presented result (`DebugRenderDirtyRectForTest`) waits at most 250 ms.
 - A bounded wait that finds no credit does not present (`frame.pacerSynchronousTimeouts`); the frame is deferred.
@@ -480,7 +489,8 @@ A rejected attachment preserves the existing host, accessibility peers, payloads
 `AttachOptions::forceWarp` chooses software rendering before the owner thread's native graphics pool is in use.
 Default attachments inherit that pool's policy, including native peers/menus. A forced request incompatible with
 an attached/default-created pool fails with `ERROR_INVALID_STATE`; it never replaces peers' resources. Matching
-repeated attachments are idempotent. Device loss retains the selected policy; the final attachment releases it.
+repeated attachments are idempotent. Device loss retains the selected policy; the final attachment releases it (the pool's
+devices may be kept past it, as [Shared device stack](#shared-device-stack) states, but not its policy).
 Only an attachment creates or holds the owner thread's graphics pool. A host that is not attached and only measures or
 lays out text (`GetWriteFactory`, `GetTextFormat`) borrows the process-shared DirectWrite factory, the same object
 attached hosts use, and creates no device or pool, so after it a forced-WARP or default attachment on that thread
@@ -648,3 +658,21 @@ of an idle individual host. Transitions and tooltip show/hide deadlines ([toolti
 hides a newly scheduled tooltip at once because its previous tick is stale, nor holds a transition still because the
 dispatcher lost a stall beyond its hitch clamp. An embedded host's clock is its own timeline
 ([embedded D3D11](Rendering_EmbeddedD3D11.md)).
+
+### Shared device stack
+
+Native hosts and popups on one thread share that thread's native device stack: the D3D11 device and immediate context, the
+DXGI factory, the Direct2D factory and device, the DirectWrite factory and the DirectComposition device. An attachment
+creates it when the thread has none; the last native detach releases it, unless at least one `EmbeddedHost` is attached
+on the thread (W2.4, budget `G10`). Then the stack is kept, so the next native popup the application opens (a menu)
+creates no device. A kept stack is released when the last such `EmbeddedHost` detaches and no native host is attached, at
+thread exit (not during process shutdown, which leaves graphics objects to `ExitProcess`), and by its retained-resource
+drop (registry row `SharedDeviceStack.retained`, which counts it only while no native host uses it and releases it only
+then), and by `ReleaseRetainedNativeDeviceStack()`, which an application calls on the thread to give the memory back (it does nothing while a native host is attached). The next native attachment finds a kept stack whose device was removed while idle and replaces it, so the session
+after a device loss creates exactly one stack; one made under the other device policy (`forceWarp`) is replaced too, as if
+there were none, since the final attachment released that policy. Nothing is created early: a thread that never attaches a
+native host never has a stack. At most one stack exists per thread. The stack stays native-host state: an `EmbeddedHost`
+never draws its surface with it, and its own `ReplaceDevice` does not affect it
+([embedded D3D11](Rendering_EmbeddedD3D11.md#graphics-and-lifetime)). What a kept stack costs and saves is in the
+[performance contract](../Core/Core_PerformanceAndResources.md#retained-native-device-stack). Tests:
+`Controls.Tests.SharedDeviceStack.cpp` (WindowHost suite).

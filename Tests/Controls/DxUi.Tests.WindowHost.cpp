@@ -4,8 +4,10 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls.Tests.PointerPacing.h"
+#include "Controls.Tests.PopupShow.h"
 #include "Controls.Tests.PresentationModes.h"
 #include "Controls.Tests.PresentedFrame.h"
+#include "Controls.Tests.SharedDeviceStack.h"
 #include "Controls.Tests.TextInputSyncOnce.h"
 #include "Controls/DxUi.Typography.h"
 #include "Support.Tests.FatalChildren.h"
@@ -7875,6 +7877,15 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestFramePacingCancelRaceKeepsTheUnit);
     DXUI_RUN_TEST(TestFramePacingForeignMessagePumpKeepsPainting);
     DXUI_RUN_TEST(TestFramePacingUnpresentedRenderPublishesNothing);
+    DXUI_RUN_TEST(TestPopupShowRendersTheFirstFrameOnce);
+    DXUI_RUN_TEST(TestPopupShowRendersAgainAfterAChangeBeforeTheShow);
+    DXUI_RUN_TEST(TestPopupShowAgainAfterHideRendersAsBefore);
+    DXUI_RUN_TEST(TestSharedDeviceStackKeptAcrossEmbeddedOnlyMenuSessions);
+    DXUI_RUN_TEST(TestSharedDeviceStackReleasedAtLastDetachWithoutEmbeddedHost);
+    DXUI_RUN_TEST(TestSharedDeviceStackReleasedWithTheLastEmbeddedHost);
+    DXUI_RUN_TEST(TestSharedDeviceStackDeviceLossWhileIdle);
+    DXUI_RUN_TEST(TestSharedDeviceStackRegistryRowCountsAndDrops);
+    DXUI_RUN_TEST(TestSharedDeviceStackNativeHostUnaffected);
     DXUI_RUN_TEST(TestFramePacingSampleTimeIsTargetTimeOnHardware);
     DXUI_RUN_TEST(TestPointerPacingIdleMoveDispatchesAtOnce);
     DXUI_RUN_TEST(TestPointerPacingAtMostOneDispatchPerPresentedFrame);

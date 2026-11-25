@@ -4436,6 +4436,17 @@ private:
 };
 #pragma warning(pop)
 
+// A popup's retained surface objects (W2.4; src/Controls/DxUi.Internal.h): private to the library.
+struct PopupSurfaceCache;
+namespace Detail
+{
+// Not final: an empty deleter that is not final keeps the owning pointer one pointer wide.
+struct PopupSurfaceCacheDeleter
+{
+    void operator()(PopupSurfaceCache* cache) const noexcept;
+};
+} // namespace Detail
+
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -4682,6 +4693,9 @@ private:
     mutable WindowHostBitmapCapture _popupBackdropCapture{};
     mutable wil::com_ptr<ID2D1Bitmap1> _popupBackdropBitmap;
     mutable wil::com_ptr<ID2D1Device> _popupBackdropDevice;
+    // The open popup's retained surface (W2.4): shadow passes, backdrop blur effect, clip geometry and gradients. Made at the
+    // first paint of an open popup, released when it closes.
+    mutable std::unique_ptr<PopupSurfaceCache, Detail::PopupSurfaceCacheDeleter> _popupSurfaceCache;
     bool _dragPopupScrollbar    = false;
     bool _dragSelecting         = false;
     bool _popupUsesBackdropBlur = false;
@@ -7134,6 +7148,8 @@ public:
         bool pointerMovePending = false; // W3.7: a pointer move waits for the next paced frame
     };
     [[nodiscard]] DebugFramePacerState DebugGetFramePacerStateForTest() const noexcept;
+    // Tests only (W2.4): the frame RenderInitialFrameForShow presented is still current, so the next show renders nothing.
+    [[nodiscard]] bool DebugIsFrameReadyForShowForTest() const noexcept;
     // Tests only. Replaces the frame-latency object the pacer waits on with a test-owned one (duplicated; nullptr makes the
     // chain unpaced) and the wait's timeout (0: the default). The real chain keeps presenting.
     void DebugSetFramePacerWaitableForTest(HANDLE waitable, DWORD waitTimeoutMs = 0u) noexcept;
@@ -8067,6 +8083,23 @@ private:
     bool _hiddenThroughAncestor     = false;
     bool _nativePresentationVisible = true;
     uint64_t _nativePresentationRevision{};
+    // W2.4: the frame RenderInitialFrameForShow presented, while it is still what the window would show: no invalidation since
+    // (_frameInvalidationEpoch, advanced by every host invalidation), the same chain, size and DPI. The window's first show then
+    // raises no visibility invalidation and its first WM_PAINT validates without rendering; any later paint clears it.
+    struct FrameReadyForShow
+    {
+        bool valid                 = false;
+        uint64_t invalidationEpoch = 0u;
+        const void* swapChain      = nullptr;
+        UINT widthPx               = 0u;
+        UINT heightPx              = 0u;
+        UINT dpi                   = 0u;
+    };
+    FrameReadyForShow _frameReadyForShow{};
+    mutable uint64_t _frameInvalidationEpoch = 0u;
+    uint64_t _presentsSucceeded              = 0u; // presents that returned S_OK
+    [[nodiscard]] bool IsFrameReadyForShowCurrent() const noexcept;
+    friend struct PresentedFrameAccess; // library-internal (DxUi.Internal.h): an invalidation made outside the host; not API
     // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
     uint64_t _keyboardOwnerEpoch                = 0u;
     KeyCharacterDispatch* _keyCharacterDispatch = nullptr; // Synchronous borrowed stack frame only.
@@ -8078,9 +8111,19 @@ struct TransientSurfaceBackdrop final
     void Reset() noexcept;
     [[nodiscard]] bool HasCapture() const noexcept;
 
+    // Drops the retained blur below (PaintTransientSurface makes it again at its next paint). SetCapture and Reset call it.
+    void ReleaseRetainedBlur() noexcept;
+
     WindowHostBitmapCapture capture;
     mutable wil::com_ptr<ID2D1Bitmap1> cachedBitmap;
     mutable wil::com_ptr<ID2D1Device> cachedDevice;
+    // Retained by PaintTransientSurface (W2.4): the clip of the backdrop's layer, and the capture blurred once with cachedBlurDip,
+    // both made from cachedBlurSource. A new capture or device releases them; a new shape, blur or DPI replaces what it changes.
+    mutable wil::com_ptr<ID2D1RoundedRectangleGeometry> cachedClipGeometry;
+    mutable D2D1_ROUNDED_RECT cachedClipShape{};
+    mutable wil::com_ptr<ID2D1Bitmap1> cachedBlurredBitmap;
+    mutable wil::com_ptr<ID2D1Bitmap1> cachedBlurSource;
+    mutable float cachedBlurDip = 0.0f;
 };
 
 struct TransientSurfaceOptions final
@@ -8099,6 +8142,11 @@ struct TransientSurfaceOptions final
                                                    TransientSurfaceBackdrop& outBackdrop,
                                                    std::wstring_view componentName) noexcept;
 void PaintTransientSurface(ControlHost& host, const D2D1_RECT_F& surfaceRect, const TransientSurfaceOptions& options = {}) noexcept;
+
+// Releases the calling thread's native device stack that DxUi keeps between native popups while an EmbeddedHost is attached
+// on the thread (Specs/Rendering/Rendering_Win32Host.md, "Shared device stack"). Does nothing, and returns false, while a
+// native host or popup is attached on the thread or when none is kept. The next native popup creates a stack again.
+bool ReleaseRetainedNativeDeviceStack() noexcept;
 
 // Acquires the canonical native root for an attached HWND in this process. The returned COM reference
 // belongs to the caller (adopt with wil::com_ptr::attach). Returns null for an invalid/unattached HWND.

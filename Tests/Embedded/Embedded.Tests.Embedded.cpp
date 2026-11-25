@@ -20,7 +20,6 @@
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -99,6 +98,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.MathDiagramsFx8.h"
 #include "Embedded.Tests.MathPaintAllocations.h"
 #include "Embedded.Tests.PointerHit.h"
+#include "Embedded.Tests.PopupSurfaces.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
 #include "Embedded.Tests.AccessibilityBuildCost.h"
 #include "Embedded.Tests.CaretFlipRegions.h"
@@ -2208,6 +2208,12 @@ __declspec(noinline) static int RunFunctionalTests()
         ComboBoxPopupLayoutTests::Run(gpu);
         return 0;
     }
+    // Plan W2.4 alone: popup surfaces (retained shadow, blur, geometry and gradients) against the uncached oracle; FX2's gate.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-popup-surfaces")
+    {
+        PopupSurfaceTests::Run(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-text-field-paint")
     {
         TextFieldPaintTests::Run(gpu);
@@ -2445,6 +2451,7 @@ __declspec(noinline) static int RunFunctionalTests()
     MathPaintAllocations::Run();
     CodeBlocksFx8::TestFx8CodeBlockLayoutsPerEdit();
     ComboBoxPopupLayoutTests::Run(gpu);
+    PopupSurfaceTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);
     PaintRegionTests::RunAll(gpu);

@@ -185,7 +185,11 @@ struct SharedWindowHostGraphicsResources
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
     uint64_t generation            = 1u;
     uint32_t attachedHostCount     = 0u;
-    bool forceWarp                 = false;
+    // W2.4: EmbeddedHosts attached on the thread. While any is, the stack outlives the last native host (a retained resource:
+    // Rendering_Win32Host.md, "Shared device stack").
+    uint32_t embeddedHostCount = 0u;
+    bool lostForTest           = false;
+    bool forceWarp             = false;
 };
 
 struct WindowHostDirtyRectMetrics
@@ -728,6 +732,36 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     resourcesByThread.clear();
 }
 
+// W2.4: a thread that may keep a shared stack past its last native host releases it when the thread exits (not during process
+// shutdown, when graphics objects are left to ExitProcess as everywhere else).
+struct SharedDeviceStackThreadExit final
+{
+    SharedDeviceStackThreadExit() noexcept                                     = default;
+    SharedDeviceStackThreadExit(const SharedDeviceStackThreadExit&)            = delete;
+    SharedDeviceStackThreadExit& operator=(const SharedDeviceStackThreadExit&) = delete;
+    SharedDeviceStackThreadExit(SharedDeviceStackThreadExit&&)                 = delete;
+    SharedDeviceStackThreadExit& operator=(SharedDeviceStackThreadExit&&)      = delete;
+    ~SharedDeviceStackThreadExit()
+    {
+        if (wil::ProcessShutdownInProgress())
+            return;
+        // A thread ending after the application's failure host closed (the main thread returning from main) leaves its
+        // objects to ExitProcess, as every other teardown then does.
+        const Failure::Scope failureScope(std::nothrow);
+        if (! failureScope.IsActive())
+            return;
+        const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+        auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+        if (const auto it = resourcesByThread.find(GetCurrentThreadId()); it != resourcesByThread.end() && it->second.attachedHostCount == 0u)
+            resourcesByThread.erase(it);
+    }
+};
+
+void NoteSharedDeviceStackThread() noexcept
+{
+    static thread_local SharedDeviceStackThreadExit threadExit;
+    static_cast<void>(threadExit);
+}
 [[nodiscard]] bool RegisterSharedWindowHostAttachment(ControlHost* host, HWND hwnd, DWORD ownerThreadId, bool forceWarp) noexcept
 {
     const std::scoped_lock lock(GetAttachedWindowHostsMutex(), GetSharedWindowHostGraphicsResourcesMutex());
@@ -744,6 +778,17 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     }
     auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
     const auto existing     = resourcesByThread.find(ownerThreadId);
+    if (existing != resourcesByThread.end() && existing->second.attachedHostCount == 0u)
+    {
+        // A stack retained past the last native host (W2.4) serves this host only if it is still usable and was made under
+        // this host's device policy; otherwise this host starts from none, as on a thread that never kept one.
+        SharedWindowHostGraphicsResources& retained = existing->second;
+        const bool lost                             = retained.lostForTest || (retained.d3dDevice && retained.d3dDevice->GetDeviceRemovedReason() != S_OK);
+        if (lost || retained.forceWarp != forceWarp)
+            ResetSharedWindowHostGraphicsResourcesLocked(retained);
+        retained.forceWarp   = forceWarp;
+        retained.lostForTest = false;
+    }
     if (forceWarp && existing != resourcesByThread.end() && ! existing->second.forceWarp &&
         (existing->second.attachedHostCount != 0u || existing->second.d3dDevice))
     {
@@ -807,7 +852,11 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     --resources.attachedHostCount;
     if (resources.attachedHostCount == 0u)
     {
-        resourcesByThread.erase(it);
+        // W2.4: while an EmbeddedHost is attached on the thread, the stack is kept for the next native popup.
+        if (resources.embeddedHostCount != 0u)
+            NoteSharedDeviceStackThread();
+        else
+            resourcesByThread.erase(it);
         return true;
     }
     return false;
@@ -2102,6 +2151,7 @@ void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
     // An invalidation no control is named for repaints the whole view (W4.10).
     PaintExtentAccess::MarkFull(*this);
     ++Detail::Work().frame.invalidations;
+    ++_frameInvalidationEpoch; // W2.4: a frame presented before this is no longer current
     // Read and cleared before any application code runs here (the embedded callback), so an invalidation it makes in turn
     // is never taken for the declared one (W8.2).
     if (_accessibilityMarks && ! std::exchange(_accessibilityMarks->attestNextInvalidate, false))
@@ -2130,6 +2180,7 @@ void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
 void ControlHost::RequestRegionFrame() const noexcept
 {
     ++Detail::Work().frame.invalidations;
+    ++_frameInvalidationEpoch; // W2.4, as InvalidateFor
     // As InvalidateFor (W8.2): an invalidation no attestation declares may change what UI Automation reads.
     if (_accessibilityMarks && ! std::exchange(_accessibilityMarks->attestNextInvalidate, false))
     {
@@ -2201,6 +2252,18 @@ bool ControlHost::PrimeForShow() noexcept
     return _nativePresentationVisible && EnsureSizeDependentResources(true);
 }
 
+bool ControlHost::IsFrameReadyForShowCurrent() const noexcept
+{
+    const FrameReadyForShow& frame = _frameReadyForShow;
+    return frame.valid && _nativePresentationVisible && frame.invalidationEpoch == _frameInvalidationEpoch && frame.swapChain == _swapChain.get() &&
+           frame.widthPx == _widthPx && frame.heightPx == _heightPx && frame.dpi == _dpi;
+}
+
+bool ControlHost::DebugIsFrameReadyForShowForTest() const noexcept
+{
+    return IsFrameReadyForShowCurrent();
+}
+
 bool ControlHost::RenderInitialFrameForShow() noexcept
 {
     const Failure::Scope failureScope;
@@ -2219,8 +2282,15 @@ bool ControlHost::RenderInitialFrameForShow() noexcept
     // The caller shows the window next and reads this frame: a bounded wait for a credit (W3.6).
     const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::WaitForCredit);
     const auto restoreMode               = wil::scope_exit([&]() noexcept { _renderPresentMode = previousMode; });
+    // W2.4: read before the render, so an invalidation the render itself raises leaves the frame not current.
+    const uint64_t invalidationEpoch = _frameInvalidationEpoch;
+    const uint64_t presentsBefore    = _presentsSucceeded;
     Render(nullptr, true);
-    return _nativePresentationVisible && _nativePresentationRevision == presentationRevision;
+    const bool current = _nativePresentationVisible && _nativePresentationRevision == presentationRevision;
+    // A whole frame presented (S_OK, so it spent the credit and is what the window will show): the show needs no other.
+    if (current && _presentsSucceeded != presentsBefore && _swapChain)
+        _frameReadyForShow = {true, invalidationEpoch, _swapChain.get(), _widthPx, _heightPx, _dpi};
+    return current;
 }
 
 bool ControlHost::IsScheduleCallerOnOwnerThread() const noexcept
@@ -4641,6 +4711,14 @@ try
             {
                 PAINTSTRUCT paint{};
                 wil::unique_hdc_paint paintHdc = wil::BeginPaint(hwnd, &paint);
+                // W2.4: the frame presented for this show is still current: validated, nothing renders and no credit is taken.
+                if (paintHdc && IsFrameReadyForShowCurrent())
+                {
+                    _frameReadyForShow.valid = false;
+                    ++Detail::Work().frame.showPaintsValidated;
+                    return 0;
+                }
+                _frameReadyForShow.valid = false;
                 // W3.6: without a frame-latency credit the region is validated and rendered at the next paced frame.
                 if (paintHdc && PacedPaintMayRender(paint.rcPaint))
                 {
@@ -4685,10 +4763,13 @@ try
                 }
                 if (! IsIconic(_hwnd))
                     ReleaseHiddenLatch();
-                InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
+                // W2.4: a first show of the frame RenderInitialFrameForShow presented needs no new frame.
+                if (! IsFrameReadyForShowCurrent())
+                    InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
             }
             else
             {
+                _frameReadyForShow.valid = false; // a later show paints as before W2.4
                 // Retire staged/published control content without discarding
                 // the swap chain (including WM_SETREDRAW's asymmetric hide).
                 // The next real visible preparation rebuilds current geometry.
@@ -7229,6 +7310,7 @@ void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* captu
 try
 {
     const Failure::Scope failureScope;
+    _frameReadyForShow.valid = false; // W2.4: whatever this renders replaces the frame presented for the show
     if (! _nativePresentationVisible)
         return;
     const auto presentationRevision = _nativePresentationRevision;
@@ -7489,6 +7571,8 @@ try
                 hrPresent = injected;
             if (hrPresent != S_OK && SUCCEEDED(hrPresent))
                 ++Detail::Work().frame.presentStatuses;
+            if (hrPresent == S_OK)
+                ++_presentsSucceeded;
             if (_framePacer)
                 _framePacer->AfterPresent(hrPresent);
             if (Detail::Trace::Listening()) [[unlikely]]
@@ -7606,7 +7690,8 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     {
         ActivateNativeTextInputSession(_focusedControl);
     }
-    if (IsSwapChainActiveHostWindow(_hwnd, _widthPx, _heightPx))
+    // A first show reports the size the window already had: the frame presented for it still shows that size (W2.4).
+    if (IsSwapChainActiveHostWindow(_hwnd, _widthPx, _heightPx) && ! IsFrameReadyForShowCurrent())
     {
         Invalidate();
     }
@@ -8699,5 +8784,87 @@ bool ControlHost::TickTreeForSchedule(Control& control, uint64_t nowTickMs, cons
             return true;
     }
     return true;
+}
+
+// W2.4: the thread's shared native device stack, kept past its last native host while an EmbeddedHost is attached on the
+// thread (Rendering_Win32Host.md, "Shared device stack"). Native-host state: the embedded host never uses it.
+void NoteEmbeddedHostAttachedToThread(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    try
+    {
+        const auto [it, inserted] = GetSharedWindowHostGraphicsResourcesByThread().try_emplace(threadId);
+        if (inserted)
+            it->second.ownerThreadId = threadId;
+        ++it->second.embeddedHostCount;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    if (threadId == GetCurrentThreadId())
+        NoteSharedDeviceStackThread();
+}
+
+void NoteEmbeddedHostDetachedFromThread(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    const auto it           = resourcesByThread.find(threadId);
+    if (it == resourcesByThread.end() || it->second.embeddedHostCount == 0u)
+        return;
+    // The last EmbeddedHost of a thread with no native host: the retained stack (if any) goes with it.
+    if (--it->second.embeddedHostCount == 0u && it->second.attachedHostCount == 0u)
+        resourcesByThread.erase(it);
+}
+
+size_t RetainedSharedDeviceStacks(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    const auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    const auto it                 = resourcesByThread.find(threadId);
+    return it != resourcesByThread.end() && it->second.attachedHostCount == 0u && it->second.d3dDevice ? 1u : 0u;
+}
+
+void DropRetainedSharedDeviceStack(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    if (const auto it = resourcesByThread.find(threadId); it != resourcesByThread.end() && it->second.attachedHostCount == 0u)
+    {
+        ResetSharedWindowHostGraphicsResourcesLocked(it->second);
+    }
+}
+
+bool ReleaseRetainedNativeDeviceStack() noexcept
+{
+    const DWORD thread = GetCurrentThreadId();
+    if (RetainedSharedDeviceStacks(thread) == 0u)
+        return false;
+    DropRetainedSharedDeviceStack(thread);
+    return true;
+}
+
+bool HasSharedDeviceStackForTest(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    const auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    const auto it                 = resourcesByThread.find(threadId);
+    return it != resourcesByThread.end() && it->second.d3dDevice != nullptr;
+}
+
+bool HasSharedDeviceBucketForTest(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    const auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    return resourcesByThread.find(threadId) != resourcesByThread.end();
+}
+
+void MarkRetainedSharedDeviceStackLostForTest(DWORD threadId) noexcept
+{
+    const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+    auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    if (const auto it = resourcesByThread.find(threadId); it != resourcesByThread.end())
+        it->second.lostForTest = true;
 }
 } // namespace DxUi

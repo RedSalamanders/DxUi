@@ -1090,6 +1090,150 @@ void DrawDropShadow(ControlHost& host,
                     float outerOpacity = 0.24f,
                     float innerOpacity = 0.12f) noexcept;
 
+// W2.4: the thread's shared native device stack (DxUi.WindowHost.cpp; Rendering_Win32Host.md, "Shared device stack") is kept
+// past its last native host or popup while an EmbeddedHost is attached on the thread. EmbeddedHost::Attach and Detach report
+// themselves; nothing is created here.
+void NoteEmbeddedHostAttachedToThread(DWORD threadId) noexcept;
+void NoteEmbeddedHostDetachedFromThread(DWORD threadId) noexcept;
+// 1 when the thread holds a stack no native host uses (the retained resource), else 0.
+[[nodiscard]] size_t RetainedSharedDeviceStacks(DWORD threadId) noexcept;
+// Releases that stack when no native host is attached on the thread; the next native host or popup creates one again.
+void DropRetainedSharedDeviceStack(DWORD threadId) noexcept;
+[[nodiscard]] bool HasSharedDeviceStackForTest(DWORD threadId) noexcept;
+[[nodiscard]] bool HasSharedDeviceBucketForTest(DWORD threadId) noexcept;
+// The next native attachment finds the retained stack's device removed (as a real device loss while idle would).
+void MarkRetainedSharedDeviceStackLostForTest(DWORD threadId) noexcept;
+
+// W2.4: a window invalidated with InvalidateRect directly (a menu popup's rows), not through its host, no longer shows the
+// frame its host presented for the show.
+struct PresentedFrameAccess
+{
+    static void NoteWindowInvalidated(const ControlHost& host) noexcept
+    {
+        ++host._frameInvalidationEpoch;
+    }
+};
+
+// W2.4 (Specs/Core/Core_PerformanceAndResources.md, "Popup surfaces"): the material surface of a ComboBox list and of a menu
+// popup (drop shadow, blurred backdrop, base fill, glaze and shade gradients, rim and borders), with the objects it draws
+// with retained per popup instead of created per paint.
+struct PopupMaterialStyle
+{
+    D2D1_COLOR_F baseFill;
+    D2D1_COLOR_F glazeTop;
+    D2D1_COLOR_F glazeMid;
+    D2D1_COLOR_F bottomShade;
+    D2D1_COLOR_F outerBorder;
+    D2D1_COLOR_F innerBorder;
+    D2D1_COLOR_F topRim;
+    float shadowInsetDip        = 3.0f;
+    float shadowYOffsetDip      = 3.0f;
+    float shadowSpreadDip       = 9.0f;
+    float shadowOuterOpacity    = 0.18f;
+    float shadowInnerOpacity    = 0.10f;
+    float backdropOpacity       = 0.0f;
+    float backdropBlurDip       = 0.0f;
+    float backdropDetailOpacity = 0.0f;
+};
+
+// What lies under the popup's shadow when it is drawn. A shadow over a surface the frame cleared to transparent (a menu popup
+// window on its composition swap chain) is drawn from a bitmap both passes were rendered into once: over transparent pixels
+// that bitmap gives the very pixels the passes give. Over other content it would not (the direct pass blends the effect's
+// unquantized output; a bitmap holds it at 8 bits), so the passes run every paint there, from retained objects.
+enum class PopupShadowTarget : uint8_t
+{
+    OverContent,
+    OverClearedSurface,
+};
+
+// One shadow pass's retained mask and effect, valid for the shape and transform they were recorded with.
+struct PopupShadowPass
+{
+    wil::com_ptr<ID2D1CommandList> mask;
+    wil::com_ptr<ID2D1Effect> effect;
+    D2D1_ROUNDED_RECT shape{};
+    D2D1_MATRIX_3X2_F transform{};
+    float blurDip = 0.0f;
+    float opacity = 0.0f;
+};
+
+// A vertical three-stop gradient: its stop collection for the colors, its brush moved to the rectangle.
+struct PopupGradient
+{
+    wil::com_ptr<ID2D1GradientStopCollection> stops;
+    wil::com_ptr<ID2D1LinearGradientBrush> brush;
+    D2D1_COLOR_F colors[3]{};
+    float top    = 0.0f;
+    float bottom = 0.0f;
+    float left   = 0.0f;
+};
+
+// Everything one popup's surface retains. Each object is keyed by every input it was made from (device, DPI, shape,
+// transform, colors, blur, source capture), so a changed input replaces it at the next paint; Release drops all of it
+// (registry: src/Controls/DxUi.RetainedCaches.cpp). Bounded: two passes, at most one popup-sized bitmap, two gradients and
+// one geometry per popup.
+// The backdrop: the clip of its layer and the blurred capture.
+struct PopupBackdropState
+{
+    wil::com_ptr<ID2D1RoundedRectangleGeometry> clipGeometry;
+    D2D1_ROUNDED_RECT clipShape{};
+    // The capture blurred once, from blurSource with blurDip (EnsurePopupBlurredBackdrop).
+    wil::com_ptr<ID2D1Bitmap1> blurredBitmap;
+    wil::com_ptr<ID2D1Bitmap1> blurSource;
+    float blurDip = 0.0f;
+};
+
+struct PopupSurfaceCache
+{
+    wil::com_ptr<ID2D1Device> device;            // the device every object below was made on
+    const ID2D1DeviceContext* context = nullptr; // and the context (identity only)
+    float dpi                         = 0.0f;
+    PopupShadowPass passes[2];
+    // OverClearedSurface: both passes rendered once, from device pixel (0,0) on the target's pixel grid.
+    wil::com_ptr<ID2D1Bitmap1> shadowBitmap;
+    float shadowYOffsetDip = 0.0f;
+    PopupBackdropState backdrop;
+    PopupGradient glaze;
+    PopupGradient shade;
+
+    void Release() noexcept;
+    [[nodiscard]] size_t Entries() const noexcept;
+    [[nodiscard]] uint64_t ResidentBytes() const noexcept;
+};
+
+// Paints the popup surface into `rect` with the host's device context. `backdrop` is the bitmap made from the capture at
+// open (or null: no blur). The pixels are those of creating every object for this paint, as before W2.4.
+void PaintPopupMaterialSurface(ControlHost& host,
+                               PopupSurfaceCache& cache,
+                               ID2D1Bitmap1* backdrop,
+                               const D2D1_RECT_F& rect,
+                               float cornerRadiusDip,
+                               const PopupMaterialStyle& material,
+                               PopupShadowTarget shadowTarget) noexcept;
+// The surface cache of the menu popup whose content control this is, or null (DxUi.Menu.cpp; the retained-cache registry).
+[[nodiscard]] PopupSurfaceCache* FindMenuPopupSurfaceCache(const Control& control) noexcept;
+// Tests: the material a menu popup resolves for `theme` (its surface is drawn with kPopupRoundSmallCornerRadiusDip corners).
+[[nodiscard]] PopupMaterialStyle ResolveMenuPopupMaterialForTest(const ThemePalette& theme) noexcept;
+// The resources this thread has created so far (every counted kind a popup surface makes): a frame that made any draws the
+// per-paint way (DxUi.cpp, PaintPopupMaterialSurface).
+[[nodiscard]] uint64_t PopupResourceCreations() noexcept;
+// The backdrop layer's rounded clip, kept while its shape stays the same.
+[[nodiscard]] bool EnsurePopupClipGeometry(ID2D1DeviceContext& dc, PopupBackdropState& state, const D2D1_ROUNDED_RECT& shape) noexcept;
+// The capture blurred once into a bitmap (made before the surface draws; never in a verifier's reference paint).
+void EnsurePopupBlurredBackdrop(ControlHost& host, ID2D1DeviceContext& dc, PopupBackdropState& state, ID2D1Bitmap1* source, float blurDip) noexcept;
+// The blurred backdrop in its rounded layer, alone (PaintTransientSurface; PaintPopupMaterialSurface uses it too).
+void PaintPopupBackdropLayer(ControlHost& host,
+                             ID2D1DeviceContext& dc,
+                             PopupBackdropState& state,
+                             ID2D1Bitmap1* source,
+                             const D2D1_RECT_F& rect,
+                             float cornerRadiusDip,
+                             float opacity,
+                             float blurDip,
+                             float detailOpacity,
+                             bool retain,
+                             bool createLayer) noexcept;
+
 inline constexpr auto kTextDrawOptions = static_cast<D2D1_DRAW_TEXT_OPTIONS>(D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
 // W2.8 (Specs/Core/Core_PerformanceAndResources.md, "Format and brush caches"). While an active scope lives, a color the

@@ -166,6 +166,7 @@ constexpr uint8_t kCaptureMiddleButton  = 2u;
 struct EmbeddedHost::State
 {
     std::shared_ptr<GraphicsDevice> graphics;
+    DWORD sharedStackThreadId = 0u; // the thread whose shared native device stack this attachment keeps (W2.4)
     EmbeddedCallbacks callbacks{};
     wil::com_ptr_nothrow<ID3D11Texture2D> texture;
     wil::com_ptr_nothrow<ID3D11ShaderResourceView> view;
@@ -255,7 +256,10 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     _host._embeddedNowTickMs       = callbacks.nowTickMs;
     _host._embeddedClockContext    = callbacks.context;
     _host._attachmentOwnerThreadId = GetCurrentThreadId();
-    const auto hr                  = ReplaceDevice(std::move(graphics));
+    // W2.4: while attached, this thread keeps its native popups' shared device stack between menus (native-host state).
+    NoteEmbeddedHostAttachedToThread(_host._attachmentOwnerThreadId);
+    _state->sharedStackThreadId = _host._attachmentOwnerThreadId;
+    const auto hr               = ReplaceDevice(std::move(graphics));
     if (FAILED(hr))
         Detach();
     else
@@ -284,7 +288,10 @@ void EmbeddedHost::Detach() noexcept
     _host._embeddedNowTickMs     = nullptr;
     _host._embeddedClockContext  = nullptr;
     _textInputRevision += attachedState->revision + 1;
+    const DWORD sharedStackThreadId = attachedState->sharedStackThreadId;
     _state.reset();
+    if (sharedStackThreadId != 0u)
+        NoteEmbeddedHostDetachedFromThread(sharedStackThreadId);
 }
 HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) noexcept
 {

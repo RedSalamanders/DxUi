@@ -38,4 +38,9 @@ void SetPaintRegionVerificationForTest(bool verify) noexcept;
 // Totals since the process started, never reset: what a test program verified and how many differed.
 void GetPaintRegionVerificationTotalsForTest(uint64_t& verified, uint64_t& mismatches) noexcept;
 void SetPaintRegionMismatchObserverForTest(PaintRegionMismatchObserver observer) noexcept;
+// W2.4's pixel oracle: while enabled on the calling thread, popup surfaces (ComboBox list, menu popup, transient-surface
+// backdrop) create every object for each paint, draw both shadow passes and blur the capture directly, and push a created
+// layer: exactly the code before W2.4. Their retained objects are neither used nor changed.
+void SetPopupSurfacesUncachedForTest(bool enabled) noexcept;
+[[nodiscard]] bool ArePopupSurfacesUncachedForTest() noexcept;
 } // namespace DxUi::Detail

@@ -26,6 +26,14 @@ group, the progress bar and the graph publish no UI Automation element, a `Scrol
 build the whole window), and a `RichTextEditor` is not published as a rich text editor. Rebuilding against the revision-6 headers, which every
 module needs anyway, gives every control its kind.
 
+Not compile breaks either (additive, W2.4): a blurred popup (`ComboBox` list or menu popup with `OverlayMaterial::Mica`,
+`MicaAlt` or `Acrylic`) keeps its backdrop blur as a bitmap made when it opens, so its pixels may differ by one level on
+some pixels from earlier builds (`Solid` popups are unchanged), and the backdrop does not follow content that changes behind
+an open popup (see [popup backdrops](controls.md#popup-backdrops)). While an `EmbeddedHost` is attached on a thread, the
+native device stack of that thread's popups is kept between menus; `DxUi::ReleaseRetainedNativeDeviceStack()` gives the
+memory back (see [hosting](hosting.md#device-recovery-and-ownership)). `TransientSurfaceBackdrop` gains retained members
+and `ReleaseRetainedBlur`, so its layout differs too.
+
 ### Embedded animation request
 
 An embedded application asks the view when it next needs the application's clock. Revision-5 code that asks

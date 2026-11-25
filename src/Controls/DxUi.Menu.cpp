@@ -89,10 +89,9 @@ constexpr float kDescriptionGapDip            = 3.0f;
 constexpr uint64_t kMenuLoopTraceRepeatFlushCount = 1024u;
 #endif
 
-constexpr wchar_t kChevronRightGlyph[]   = L"\uE76C";
-constexpr wchar_t kCheckMarkGlyph[]      = L"\uE73E";
-constexpr wchar_t kRadioBulletGlyph[]    = L"\uF137"; // Filled circle
-constexpr GUID kMenuGaussianBlurEffectId = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5}};
+constexpr wchar_t kChevronRightGlyph[] = L"\uE76C";
+constexpr wchar_t kCheckMarkGlyph[]    = L"\uE73E";
+constexpr wchar_t kRadioBulletGlyph[]  = L"\uF137"; // Filled circle
 
 struct MenuController;
 struct MenuPopup;
@@ -276,24 +275,7 @@ struct MenuResolvedItemPaintStyle
     D2D1_COLOR_F chevronColor  = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
-struct MenuSurfaceMaterialStyle
-{
-    D2D1_COLOR_F baseFill;
-    D2D1_COLOR_F glazeTop;
-    D2D1_COLOR_F glazeMid;
-    D2D1_COLOR_F bottomShade;
-    D2D1_COLOR_F outerBorder;
-    D2D1_COLOR_F innerBorder;
-    D2D1_COLOR_F topRim;
-    float shadowInsetDip        = 3.0f;
-    float shadowYOffsetDip      = 3.0f;
-    float shadowSpreadDip       = 7.0f;
-    float shadowOuterOpacity    = 0.18f;
-    float shadowInnerOpacity    = 0.10f;
-    float backdropOpacity       = 0.0f;
-    float backdropBlurDip       = 0.0f;
-    float backdropDetailOpacity = 0.0f;
-};
+using MenuSurfaceMaterialStyle = PopupMaterialStyle;
 
 struct MenuPopupShadowMargins
 {
@@ -592,39 +574,6 @@ struct MenuBackdropSnapshot
     };
 }
 
-[[nodiscard]] wil::com_ptr<ID2D1LinearGradientBrush> CreateVerticalGradientBrush(
-    ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, const D2D1_COLOR_F& topColor, const D2D1_COLOR_F& midColor, const D2D1_COLOR_F& bottomColor) noexcept
-{
-    if (! dc)
-    {
-        return {};
-    }
-
-    const D2D1_GRADIENT_STOP stops[3] = {
-        D2D1::GradientStop(0.0f, topColor),
-        D2D1::GradientStop(0.42f, midColor),
-        D2D1::GradientStop(1.0f, bottomColor),
-    };
-
-    wil::com_ptr<ID2D1GradientStopCollection> stopCollection;
-    if (FAILED(CountedCreateGradientStopCollection(dc, stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
-    {
-        return {};
-    }
-
-    wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(CountedCreateLinearGradientBrush(dc,
-                                                D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)),
-                                                stopCollection.get(),
-                                                brush.put())))
-    {
-        const Failure::Scope outerFailureScope;
-        return {};
-    }
-
-    return brush;
-}
-
 [[nodiscard]] MenuSurfaceMaterialStyle ResolveMenuSurfaceMaterialStyle(const ThemePalette& theme, const MenuItemVisualStyle& itemStyle) noexcept
 {
     const D2D1_COLOR_F highlightBase = ChooseContrastingTextColor(theme.overlayBackground);
@@ -693,129 +642,6 @@ struct MenuBackdropSnapshot
     }
 
     return material;
-}
-
-void PaintMenuBackdropSurface(
-    ControlHost& host, MenuBackdropSnapshot* snapshot, const D2D1_RECT_F& menuRect, float cornerRadiusDip, const MenuSurfaceMaterialStyle& material) noexcept
-{
-    if (! snapshot || material.backdropOpacity <= 0.0f || material.backdropBlurDip <= 0.0f)
-    {
-        return;
-    }
-
-    auto* const dc             = host.GetDeviceContext();
-    ID2D1Bitmap1* const bitmap = EnsureMenuBackdropBitmap(host, *snapshot);
-    if (! dc || ! bitmap)
-    {
-        return;
-    }
-
-    wil::com_ptr<ID2D1Factory> factory;
-    dc->GetFactory(factory.put());
-
-    wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory ||
-        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(menuRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
-        ! roundedGeometry)
-    {
-        return;
-    }
-
-    wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(CountedCreateEffect(dc, kMenuGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
-    {
-        return;
-    }
-
-    blurEffect->SetInput(0u, bitmap);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, material.backdropBlurDip);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED);
-    blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
-
-    wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(CountedCreateLayer(dc, layer.put())) || ! layer)
-    {
-        return;
-    }
-
-    const D2D1_RECT_F sourceRect = D2D1::RectF(
-        0.0f, 0.0f, host.PixelsToDip(static_cast<float>(snapshot->capture.widthPx)), host.PixelsToDip(static_cast<float>(snapshot->capture.heightPx)));
-
-    const D2D1_LAYER_PARAMETERS1 layerParameters = D2D1::LayerParameters1(menuRect,
-                                                                          roundedGeometry.get(),
-                                                                          D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-                                                                          D2D1::Matrix3x2F::Identity(),
-                                                                          (std::clamp)(material.backdropOpacity, 0.0f, 1.0f),
-                                                                          nullptr,
-                                                                          D2D1_LAYER_OPTIONS1_NONE);
-    const D2D1_POINT_2F targetOffset             = D2D1::Point2F(menuRect.left, menuRect.top);
-    dc->PushLayer(layerParameters, layer.get());
-    dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
-    ++Detail::Work().popups.backdropBlurPasses;
-    if (material.backdropDetailOpacity > 0.0f)
-    {
-        dc->DrawBitmap(bitmap, menuRect, (std::clamp)(material.backdropDetailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);
-    }
-    dc->PopLayer();
-}
-
-void PaintMenuMaterialSurface(
-    ControlHost& host, MenuBackdropSnapshot* snapshot, const D2D1_RECT_F& menuRect, float cornerRadiusDip, const MenuSurfaceMaterialStyle& material) noexcept
-{
-    auto* const dc = host.GetDeviceContext();
-    if (! dc)
-    {
-        return;
-    }
-
-    const D2D1_RECT_F shadowTargetRect   = InflateRect(menuRect, -material.shadowInsetDip, -material.shadowInsetDip);
-    const D2D1_ROUNDED_RECT menuRounded  = D2D1::RoundedRect(menuRect, cornerRadiusDip, cornerRadiusDip);
-    const D2D1_RECT_F innerRect          = InflateRect(menuRect, -1.0f, -1.0f);
-    const D2D1_ROUNDED_RECT innerRounded = D2D1::RoundedRect(innerRect, (std::max)(0.0f, cornerRadiusDip - 1.0f), (std::max)(0.0f, cornerRadiusDip - 1.0f));
-
-    DrawDropShadow(host,
-                   shadowTargetRect,
-                   (std::max)(0.0f, cornerRadiusDip - material.shadowInsetDip),
-                   material.shadowYOffsetDip,
-                   material.shadowSpreadDip,
-                   material.shadowOuterOpacity,
-                   material.shadowInnerOpacity);
-
-    PaintMenuBackdropSurface(host, snapshot, menuRect, cornerRadiusDip, material);
-    DrawRoundedRect(host, menuRect, material.baseFill, D2D1::ColorF(0, 0, 0, 0), cornerRadiusDip);
-
-    if (wil::com_ptr<ID2D1LinearGradientBrush> glazeBrush = CreateVerticalGradientBrush(
-            dc, menuRect, material.glazeTop, material.glazeMid, D2D1::ColorF(material.glazeMid.r, material.glazeMid.g, material.glazeMid.b, 0.0f)))
-    {
-        dc->FillRoundedRectangle(menuRounded, glazeBrush.get());
-    }
-
-    if (wil::com_ptr<ID2D1LinearGradientBrush> bottomShadeBrush =
-            CreateVerticalGradientBrush(dc,
-                                        menuRect,
-                                        D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, 0.0f),
-                                        D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, material.bottomShade.a * 0.35f),
-                                        material.bottomShade))
-    {
-        const Failure::Scope outerFailureScope;
-        dc->FillRoundedRectangle(menuRounded, bottomShadeBrush.get());
-    }
-
-    if (auto* const topRimBrush = host.GetSolidBrush(material.topRim))
-    {
-        const float rimY = menuRect.top + 1.0f;
-        dc->DrawLine(
-            D2D1::Point2F(menuRect.left + cornerRadiusDip - 1.0f, rimY), D2D1::Point2F(menuRect.right - cornerRadiusDip + 1.0f, rimY), topRimBrush, 1.0f);
-    }
-
-    if (auto* const outerBorderBrush = host.GetSolidBrush(material.outerBorder))
-    {
-        dc->DrawRoundedRectangle(menuRounded, outerBorderBrush, 1.0f);
-    }
-    if (auto* const innerBorderBrush = host.GetSolidBrush(material.innerBorder))
-    {
-        dc->DrawRoundedRectangle(innerRounded, innerBorderBrush, 1.0f);
-    }
 }
 
 [[nodiscard]] IWICImagingFactory* GetMenuIconWicFactory() noexcept
@@ -1176,6 +1002,8 @@ struct MenuPopup
     float acceleratorColumnWidthDip = 0.0f;
     bool hasSubmenuItems            = false;
     MenuBackdropSnapshot backdropSnapshot;
+    // The popup surface's retained objects (W2.4): released with the popup.
+    PopupSurfaceCache surfaceCache;
     MenuPopupShadowMargins shadowMargins;
     bool usesSystemBackdrop           = false;
     bool usesAppBackdropBlur          = false;
@@ -1642,6 +1470,7 @@ void InvalidatePopup(MenuPopup& popup) noexcept
     }
 
     SynchronizeMenuAccessibility(popup);
+    PresentedFrameAccess::NoteWindowInvalidated(popup.host);
     InvalidateRect(popup.hwnd, nullptr, FALSE);
 }
 
@@ -3203,7 +3032,15 @@ public:
 
         // Background
         const MenuSurfaceMaterialStyle material = ResolveMenuSurfaceMaterialStyle(theme, style);
-        PaintMenuMaterialSurface(host, popup->usesAppBackdropBlur ? &popup->backdropSnapshot : nullptr, surfaceRect, kMenuCornerRadiusDip, material);
+        ID2D1Bitmap1* const backdrop            = popup->usesAppBackdropBlur && material.backdropOpacity > 0.0f && material.backdropBlurDip > 0.0f
+                                                      ? EnsureMenuBackdropBitmap(host, popup->backdropSnapshot)
+                                                      : nullptr;
+        // On its composition swap chain the popup window clears to transparent before this, the first thing it draws: the
+        // shadow is drawn from a bitmap both passes were rendered into once (W2.4).
+        const PopupShadowTarget shadowTarget = host.GetPresentationMode() == ControlHost::PresentationMode::CompositionSwapChain
+                                                   ? PopupShadowTarget::OverClearedSurface
+                                                   : PopupShadowTarget::OverContent;
+        PaintPopupMaterialSurface(host, popup->surfaceCache, backdrop, surfaceRect, kMenuCornerRadiusDip, material, shadowTarget);
 
         const D2D1_RECT_F viewportRect = popup->GetViewportRect();
         dc->PushAxisAlignedClip(viewportRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
@@ -4281,7 +4118,9 @@ bool CreateMenuPopupWindow(MenuController& controller,
         }
     }
 
-    InvalidateRect(hwnd, nullptr, FALSE);
+    // No InvalidateRect here (W2.4): the show paints the window, and when the frame rendered before it is still current
+    // (nothing invalidated the popup since) that paint validates without rendering again. A popup whose first frame did not
+    // present, or that changed since, still renders at that paint.
 
     DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.popup-create-end",
                                 L"owner={:#x} hwnd={:#x} popupIndex={} point=({}, {}) windowRect=({}, {}, {}, {}) surfaceRect=({}, {}, {}, {}) "
@@ -7027,5 +6866,17 @@ bool DebugComputeContextMenuPopupPosition(POINT screenPoint,
     return outRect.right > outRect.left && outRect.bottom > outRect.top;
 }
 #endif
+
+// The retained-cache registry's row for a menu popup's surface (W2.4): a popup host's root is its MenuContentControl.
+PopupSurfaceCache* FindMenuPopupSurfaceCache(const Control& control) noexcept
+{
+    const auto* content = dynamic_cast<const MenuContentControl*>(&control);
+    return content && content->popup ? &content->popup->surfaceCache : nullptr;
+}
+
+PopupMaterialStyle ResolveMenuPopupMaterialForTest(const ThemePalette& theme) noexcept
+{
+    return ResolveMenuSurfaceMaterialStyle(theme, ResolveMenuVisualStyle(theme));
+}
 
 } // namespace DxUi

@@ -58,6 +58,7 @@
     X(frame, presentsWithoutCredit)         /* Native presents made while the paced host held no frame-latency credit; must stay 0 (W3.6). */                  \
     X(frame, renders)                       /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                      \
     X(frame, shadowPasses)                  /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                \
+    X(frame, showPaintsValidated)           /* WM_PAINTs at a show validated without a render: the frame presented for the show was current (W2.4). */         \
     X(frame, swapChains)                    /* Swap chains native hosts created, for composition or for a window. */                                           \
     X(frame, tickCalls)                     /* Control::Tick calls the frame schedule made for due requests (whole-tree walks excluded). */                    \
     X(frame, tickDiscoveryWalks)            /* Whole-tree ticks an embedded root installation asked for, so controls can claim ticks. */                       \
