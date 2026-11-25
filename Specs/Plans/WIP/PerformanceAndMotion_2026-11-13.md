@@ -1220,6 +1220,16 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     animation objects; embedded: descriptions published and the fallback ticks only while unconsumed.
   - **Needs**: `W5.1`, `W5.6`, `W5.9`, `W3.5`. **Size**: M.
 - [ ] **W5.12 Materials.**
+  - **Reinforced by the developer** (25 November 2026): this item is required in step 3, not optional. `W2.4` keeps the
+    blur of a popup's backdrop as a bitmap, made once from the screen captured when the popup opens, so an open popup
+    does not show content that changes behind it. It did not before `W2.4` either (the capture was always taken once
+    and blurred again on every paint), but the kept bitmap makes that a stated rule. This item is what makes a
+    backdrop follow the content: it removes the capture, and for in-window and embedded overlays it replaces `W2.4`'s
+    kept bitmap by a blur of the current surface. Its gate gains two clauses. An in-window or embedded overlay shows
+    content that changed behind it in the same frame that shows the change, with no picture kept from the open. A frame
+    that repaints only a region under a blurred surface equals the whole frame: the result of Direct2D's blur depends
+    on the paint clip (records of `W2.4` and `W4.10`), so a blur made per frame is evaluated over the same rectangle
+    whatever is repainted.
   - **Why**: popup backdrops come from a GDI `BitBlt(... CAPTUREBLT)` screen capture that is then blurred
     ([DxUi.cpp](../../../src/Controls/DxUi.cpp) `:278-345`), a privacy and cost problem; `SetSystemBackdrop` applies
     `DWMWA_SYSTEMBACKDROP_TYPE` to the host HWND only (`DxUi.WindowHost.cpp:1873-1885`); `MenuPopup` windows carry a
