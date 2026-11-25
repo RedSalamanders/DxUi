@@ -1,1 +1,0 @@
-- Share the existing MSVC family guard through the pinned native build policy.

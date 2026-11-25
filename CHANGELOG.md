@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Share the existing MSVC family guard through the pinned native build policy.
 - Preserve modifiers from the delivered wheel message and its owning window host.
 - Use the shared engine's strict build summary check for DxUi builds, SDK smoke tests and paired diagnostic runs.
 - Recreate native host graphics resources when a Direct3D driver reports an internal device error.
