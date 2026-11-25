@@ -172,7 +172,7 @@ constexpr std::string_view kReplay = "DxUi.EmbeddedTests.exe --test-incremental-
 inline void TestEmbeddedRetainedCachesDropToZero(GraphicsFixture& gpu)
 {
     std::vector<DxUi::RetainedCacheCount> populated;
-    for (auto build : {&BuildControlsScene<EmbeddedParityScene>, &BuildRichScene<EmbeddedParityScene>})
+    for (auto build : {&BuildControlsScene<EmbeddedParityScene>, &BuildRichScene<EmbeddedParityScene>, &BuildRichCodeBlocksScene<EmbeddedParityScene>})
     {
         EmbeddedParityScene scene(gpu.device.get());
         build(scene);
@@ -231,6 +231,7 @@ inline void TestEmbeddedIncrementalParityScripts(GraphicsFixture& gpu)
     RunParityScript(InteractionScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(RichScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(RichBlocksScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+    RunParityScript(RichCodeBlocksScript<EmbeddedParityScene>(), make, "embedded", kReplay); // W7.6
     RunParityScript(RichObjectsScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     // W7.3: the fresh scene prepares with the incremental scene's chunk starts.
     DxUi::RichText::Detail::testRichRecordChunkPlan = true;

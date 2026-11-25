@@ -3766,6 +3766,15 @@ D2D1_RECT_F RichTextEditor::ScrollbarTrack() const noexcept
     const float left    = IsRightToLeft() ? bounds.left + padding : bounds.right - padding - kScrollbarThicknessDip;
     return D2D1::RectF(std::max(bounds.left, left), viewport.top, std::min(bounds.right, left + kScrollbarThicknessDip), viewport.bottom);
 }
+void RichTextEditor::RetainedCodeLayouts(size_t& entries, uint64_t& bytes) const noexcept
+{
+    entries = _state->layout.CodeLayoutCacheEntries();
+    bytes   = _state->layout.CodeLayoutCacheBytes();
+}
+void RichTextEditor::ReleaseCodeLayouts() const noexcept
+{
+    _state->layout.ReleaseCodeLayoutCache();
+}
 void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
     _state->calloutAccent.reset();

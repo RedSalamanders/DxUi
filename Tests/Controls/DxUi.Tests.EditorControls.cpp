@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.DxUiTestMovedControls.h"
+#include "Controls.Tests.RichCodeBlocks.h"
 #include "Controls.Tests.RichDocument.h"
 #include "Controls.Tests.RichDocumentLayout.h"
 #include "Controls.Tests.RichMarkdown.h"
@@ -2080,6 +2081,7 @@ void RunEditorControlTests()
     RunRichProjectionBlockTests();
     RunRichTextLayoutTests();
     RunRichDocumentLayoutTests();
+    RunRichCodeBlockTests();
     RunRichTextEditorTests();
     RunRichTextInputTests();
     RunRichTextStoreTests();

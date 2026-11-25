@@ -134,7 +134,7 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 22u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 23u> rows{{
             // Panel::_paintExtent, the painted extent of a panel and its visible descendants (W4.10): recomputed on demand.
             {"Panel._paintExtent",
              [](const Control& control) noexcept { return PaintExtentAccess::CachedExtents(control); },
@@ -508,6 +508,33 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
             if (auto* editor = dynamic_cast<RichTextEditor*>(&control))
                 editor->RetireLayout(false);
         }}, // No byte count: the prepared document layout keeps no running total of its storage.
+            // RichTextEditor's semantic geometry's CodeLayoutCache (codeLayouts_, W7.6): the line number and language badge layouts of
+            // numbered code fences, shared by the published geometry and the one in preparation, at most 4,096 numbers and 256 badges
+            // (the layouts themselves are DirectWrite's and are not in the bytes). Rebuilt on the next preparation.
+            {"RichTextEditor.codeLayoutCache",
+             [](const Control& control) noexcept
+        {
+            const auto* editor = dynamic_cast<const RichTextEditor*>(&control);
+            size_t entries     = 0u;
+            uint64_t bytes     = 0u;
+            if (editor)
+                editor->RetainedCodeLayouts(entries, bytes);
+            return entries;
+        },
+             [](Control& control) noexcept
+        {
+            if (auto* editor = dynamic_cast<RichTextEditor*>(&control))
+                editor->ReleaseCodeLayouts();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* editor = dynamic_cast<const RichTextEditor*>(&control);
+            size_t entries     = 0u;
+            uint64_t bytes     = 0u;
+            if (editor)
+                editor->RetainedCodeLayouts(entries, bytes);
+            return bytes;
+        }},
         }};
         return rows;
     }

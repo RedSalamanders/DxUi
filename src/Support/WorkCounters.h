@@ -87,6 +87,7 @@
     X(text, nativeTextInputStateCopies) /* Text-input states copied with their document (TryReadNativeTextInputState). */                                      \
     X(text, setTextRenderingParams)     /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */               \
     X(text, textLayoutCacheBypasses)  /* Host-drawn strings the host's layout table did not serve, drawn through DrawText: no paint in progress, a box that is \
+                                         \                                                                                                                     \
                                          not positive and finite, a string over 4,096 units, or the test seam. */                                              \
     X(text, textLayoutCacheHits)      /* Host-drawn strings drawn with a layout the host's table already held. */                                              \
     X(text, textLayoutCacheMisses)    /* Host-drawn strings whose layout the host's table created and kept. */                                                 \
@@ -118,7 +119,10 @@
 
 // Rich documents.
 #define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \
+    X(rich, caretHitTests)       /* DirectWrite HitTestTextPosition calls a prepared rich layout made for a caret box (PreparedLayout::TryCaret, W7.6). */     \
     X(rich, chunksLaid)          /* Rich text layout chunks laid out by a document-layout preparation (not reused). */                                         \
+    X(rich, codeBadgeLayouts)    /* Language badge layouts a code fence's semantic geometry prepared, cached ones excluded (W7.6). */                          \
+    X(rich, codeNumberLayouts)   /* Line number layouts a numbered code fence's semantic geometry prepared, cached ones excluded (W7.6). */                    \
     X(rich, diagramPreparations) /* Native diagram paint objects begun by a semantic geometry preparation (not carried). */                                    \
     X(rich,                                                                                                                                                    \
       displayUnitsWritten) /* Display UTF-16 units a semantic build emitted from syntax; units copied from reused blocks are semanticDisplayUnitsCopied. */    \
@@ -155,6 +159,7 @@
     X(rich, preparationTurns)                /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                  \
     X(rich, semanticBlocksReused)            /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */       \
     X(rich, semanticBytesCopied) /* Bytes a semantic build copied from reused blocks: display text, elements with their strings, paragraphs, spans, runs,      \
+    \                                                                                                                                                          \
                                     headings, records and source formats. */                                                                                   \
     X(rich, semanticDisplayUnitsCopied)     /* Display UTF-16 units copied, with their spans and runs, from reused semantic blocks. */                         \
     X(rich, semanticElementsCopied)         /* Semantic elements copied (shifted) from reused blocks. */                                                       \

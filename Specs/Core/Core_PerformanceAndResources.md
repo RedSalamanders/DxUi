@@ -338,8 +338,8 @@ snapshot, delta and receipt.
   its whole non-empty source or display. The editor marks its `Document` (and every lineage that document later takes,
   through a reset, an adopted snapshot or an exchanged document), so copies out of any other `RichText::Document` count
   apart, as `otherDocumentBytesCopied` and `otherDocumentFlattens`: the small documents preparation builds for labels,
-  such as each line number of a numbered code fence in the Subtle presentation (one whole-document copy of a few units per
-  numbered line, per preparation of that fence; plan item `W7.6`). With no UI Automation client listening (with one, the
+  such as a line number or language badge of a numbered code fence in the Subtle presentation (one whole-document copy of a few
+  units per layout built, which is only a number or a language not built before; plan item `W7.6`, below). With no UI Automation client listening (with one, the
   accessibility event and snapshot still copy the document; see "Rich text-input snapshots" in the input contract), per
   input event in a 64 Ki-unit `RichTextEditor` (the event itself and both text-input synchronizations, not the
   preparation that follows), a one-character insert and an arrow key copy at most 1 KiB and no gated event (insert,
@@ -354,6 +354,9 @@ snapshot, delta and receipt.
   Math and diagram painting counts each relative-luminance evaluation its contrast decisions run (`luminanceEvaluations`), each
   flowchart edge whose connector a paint drew (`edgesDrawn`) and each draw call that stroked one (`edgeConnectorDraws`), and
   each math font read from DirectWrite (`mathFontReads`; plan item `W7.7`).
+  It counts each line number layout (`codeNumberLayouts`) and language badge layout (`codeBadgeLayouts`) of a numbered code
+  fence that it builds rather than takes from the layout cache; a prepared text layout counts each DirectWrite
+  `HitTestTextPosition` call that reads a caret box (`caretHitTests`).
   Document layout counts each text chunk it lays out rather than reuses (`chunksLaid`) and each whole-document layout it builds (`wholeLayoutsLaid`). Each owner turn of a
   `RichTextEditor`'s cooperative content preparation counts `preparationTurns`.
   A semantic build also counts the top-level blocks it reuses (`semanticBlocksReused`) and what it copies from the
@@ -2005,6 +2008,62 @@ publication the preparation began from, and the staged graph, whose laid chunks 
 publication shares), and they hold at most 3 x 127 distinct chunk layouts and 2 whole
 layouts. Old and staged graphs together can therefore exceed 127 chunks: a width step of a
 90-chunk document keeps the 90 old chunks while it lays up to 90 new ones.
+Code blocks (W7.6). `PreparedLayout::TryVisibleRange` answers a window without reading a caret box per line where it can
+show that the caret boxes are stacked: a box's top and its bottom never decrease from one line to the next. Preparation
+decides that once per layout (`PreparedLayoutAccess::CaretBoxesStacked`): the text has one style (every style run alike and
+covering it), no inline object and no script run, and, in uniform spacing (a line-height multiplier or script spacing), is
+printable ASCII. Then every line's caret box comes from one face at one size: in natural spacing it is the line's own box
+(its height equals the line metrics' on every line of every fixture), and in uniform spacing every line has the same height
+and the box has the same offset and height inside it, so tops and bottoms are the line tops plus a constant. A layout of
+mixed run sizes, of inline objects or scripts, or of uniform spacing with a font fallback is not decided stacked and is
+stepped from the first line, as the query always was: there a caret box can leave its line (a glyph box taller than a line
+of a multiplier below the font's height, a large run starting a line after a small one), and a search over boxes that go
+back would be wrong. A stacked layout of more than 16 lines keeps the sums of its line heights as a hint of the line to look
+at first; the first visible line and the first line starting at or below the window are found by doubling steps from the hint
+and a halving over the real caret boxes (`HitTestTextPosition` at each line's first offset). The answer is the stepping
+scan's: the tests keep that scan as the reference and compare it at every line boundary and one single-precision unit either
+side, with windows of 0, one unit, one line and two and a half lines, for wrapped Latin at multipliers 0, 1.0, 1.15 and 1.65 (preparation refuses one below 1),
+right-to-left, mixed bidirectional, empty-line and trailing-newline text, layouts of mixed run sizes (a heading line after a
+body line and the reverse) and layouts of 65,536 and 131,072 units (the source and semantic display maxima), and find no
+difference (`Controls.Tests.RichCodeBlocks.cpp`). The gate rests on the argument above, not on a failing fixture: with the
+search forced by a test switch on the mixed-size and fallback-font layouts the sweep is run too and its result is in the
+receipt. The sums are a hint and not the answer because DirectWrite's caret tops are not
+those sums: with a line-height multiplier the caret box is the glyph box inside the line (on every line its height differs
+from the line's and its top is offset, by 0.63 DIP on the first line at 13.7 DIP), and without one DirectWrite's own
+single-precision accumulation differs from a float sum of the line metrics on 231 of 1,201 lines. A query therefore reads a
+bounded number of caret boxes instead of one per line before the window; the plan item's clause of 0 `HitTestTextPosition`
+calls per visible-range query is not met, and cannot be with this data. The document-level
+`PreparedDocumentLayout::TryVisibleRange` does the same per chunk, with the placed top of a line (the chunk's top added in
+double precision and rounded once) in the same two predicates: a chunk of stacked boxes is searched, any other stepped, and
+`PreparedDocumentLayoutAccess::VisibleRange` with `stepping` is its reference. The visible-range queries of the semantic
+geometry (`TryVisibleRange` and `TryVisibleSourceRange`) visit the boxes the paint index returns for the window, in box
+order, instead of every box; the index's leaves are each box's frame and ink, a superset of the boxes the same frame test
+selects, so the answers are the full scan's (`TryVisibleRangeByFullScan` and `TryVisibleSourceRangeByFullScan` keep it as
+the reference: 10,824 windows over a document of paragraphs, a list, a table, a quote, an image and three fences, in both
+presentations and both reading directions, no difference).
+
+The line numbers and language badges of numbered code fences are layouts shared through one cache per semantic geometry
+(`CodeLayoutCache`, registered as `RichTextEditor.codeLayoutCache`). A number layout is keyed by its digits, the gutter format
+(width, code font family and size, line height, tab stop, locale, alignment, wrap), the reading direction and the DPI;
+a badge layout by its language and the same fields, and its width follows the document's, so a width step builds one badge
+per language. The cache holds the one factory its layouts were made by and drops every entry when a preparation begins with
+another, so an address a released factory had can never name one of its layouts (`TestRichCodeBlockCacheFollowsItsFactory`).
+A cache hit spends no layout of a turn's budget; a turn is still bounded by its block steps, one for each number placed, hit
+or built, so on a 2,000-line fence a turn of 64 steps places at most 64 numbers
+(`TestRichCodeBlockTurnsAreBoundedWhenEveryNumberHits`). An insert that cannot allocate is not caught: the owner turn's
+`catch (const std::bad_alloc&)` enters the fatal allocation path. The published geometry and the one in preparation share the cache; a cached layout is immutable
+(`shared_ptr<const PreparedLayout>`) and is never prepared again. A publication drops the entries its generation did not use,
+so after it the cache holds what that geometry draws, and during a preparation that plus what the preparation adds. Bound: 4,096
+number entries (the most numbers one geometry draws) and 256 badge entries; when a table is full, the entries the preparation
+in progress has not used are dropped first, and a layout that still does not fit is used and not kept. Resident bytes are the
+tables, the keys' strings and options, about 560 bytes an entry (2,501 entries measured 1.4 MB; at most about 2.5 MB at the
+bound); a layout's DirectWrite storage is not counted. A theme changes only colors, which no layout holds. A change of font,
+size, DPI, gutter width, reading direction, locale or line height is another key and builds new layouts, each tested against a
+geometry with no cache (`TestRichCodeBlockLayoutsAreNeverStale`). On `FX8`, number and badge layouts built per one-character
+prose insert, Enter, arrow key and insert next to the table are 0, and 0 per character typed inside the numbered fence (it adds
+no new distinct number; a line added builds exactly the numbers no fence has yet,
+`TestRichCodeBlockLayoutsAreSharedAcrossEdits`); a width step builds no number layout and at most one badge layout per
+language (`Embedded.Tests.CodeBlocksFx8.h`).
 Count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
 embedded composition must allocate and prepare nothing. `PreparedDocumentLayout::Draw`
 uses only published reference/chunk layouts and never creates a compatibility layout,

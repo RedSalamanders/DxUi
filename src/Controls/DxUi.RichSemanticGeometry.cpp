@@ -3,6 +3,7 @@
 #include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.PreparedMath.h"
 #include "DxUi.RichBidi.h"
+#include "DxUi.RichCodeLayoutCache.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichLayoutOptions.h"
 #include "DxUi.SemanticExtensions.h"
@@ -923,7 +924,7 @@ struct PreparedSemanticGeometry::State
         {
             decorations = std::make_unique<MarkdownDecorations>();
             if (! document->Syntax()->SourceRegion())
-                codeLabels = std::make_unique<std::vector<std::unique_ptr<PreparedLayout>>>(document->Elements().size());
+                codeLabels = std::make_unique<std::vector<std::shared_ptr<const PreparedLayout>>>(document->Elements().size());
         }
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
@@ -968,10 +969,10 @@ struct PreparedSemanticGeometry::State
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
     std::unique_ptr<MarkdownDecorations> decorations;
-    std::unique_ptr<std::vector<std::unique_ptr<PreparedLayout>>> codeLabels;
+    std::unique_ptr<std::vector<std::shared_ptr<const PreparedLayout>>> codeLabels; // Badges are shared through CodeLayoutCache (W7.6).
     struct CodeNumber
     {
-        std::unique_ptr<PreparedLayout> layout;
+        std::shared_ptr<const PreparedLayout> layout; // Shared through CodeLayoutCache (W7.6): never prepared again.
         D2D1_POINT_2F origin{};
         D2D1_RECT_F clip{};
     };
@@ -1206,6 +1207,11 @@ struct PreparedSemanticGeometry::Preparation
     std::size_t nativeIndex{}, codeLabelIndex{}, codeNumberBox{}, codeNumberLine{}, codeNumberOffset{}, codeNumberValue = 1u;
     float codeNumberY{};
     bool codeNumberNeeded = true;
+    // The shared line number and badge layouts (W7.6); null while the oracle's fresh scene prepares, which builds them all.
+    CodeLayoutCache* codeLayouts{};
+    // The options every number layout of the fence in hand is made with, and every badge layout of the document.
+    LayoutOptions codeNumberOptions, codeBadgeOptions;
+    bool codeNumberOptionsReady{}, codeBadgeOptionsReady{};
     std::size_t imageIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
@@ -2650,6 +2656,17 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                      : nullptr;
     auto next                  = std::make_unique<Preparation>(
         std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages, previous, previousNative);
+    // The line number and badge layouts are shared with the published geometry (W7.6). The oracle's fresh scene builds them
+    // all: IsFreshPreparationForTest is the seam W2.3 added for carrying (above), a thread-local flag read in every
+    // configuration and set only by Detail::SetFreshPreparationForTest (not a public API, called by the oracle alone), so a
+    // shipping process always uses the cache.
+    if (options.markdownPresentation == MarkdownPresentationStyle::Subtle && ! IsFreshPreparationForTest())
+    {
+        if (! codeLayouts_)
+            codeLayouts_ = std::make_unique<CodeLayoutCache>();
+        codeLayouts_->Bind(factory);
+        next->codeLayouts = codeLayouts_.get();
+    }
     next_.swap(next);
     return LayoutPreparationStatus::Pending;
 }
@@ -3050,23 +3067,39 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         language = language.substr(0u, end);
                     if (! language.empty() && language.size() <= 128u)
                     {
-                        ::DxUi::RichText::Document labelSource{std::wstring(language)};
-                        auto projection              = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
-                        auto options                 = work.state->options;
-                        options.widthDip             = std::max(1.0f, options.widthDip - 12.0f);
-                        options.fontSizeDip          = std::max(1.0f, options.fontSizeDip * 0.75f);
-                        options.lineHeightMultiplier = 0.0f;
-                        auto label                   = std::make_unique<PreparedLayout>();
-                        const HRESULT prepareResult  = PreparedLayoutAccess::Prepare(*label, work.state->factory.get(), projection, options);
-                        if (FAILED(prepareResult))
+                        // One badge per language (W7.6): fences of the same language share one layout, and so does
+                        // the next generation of the geometry.
+                        if (! work.codeBadgeOptionsReady)
                         {
-                            result.status = LayoutPreparationStatus::Failed;
-                            result.result = prepareResult;
-                            next_.reset();
-                            return result;
+                            work.codeBadgeOptions                      = work.state->options;
+                            work.codeBadgeOptions.widthDip             = std::max(1.0f, work.codeBadgeOptions.widthDip - 12.0f);
+                            work.codeBadgeOptions.fontSizeDip          = std::max(1.0f, work.codeBadgeOptions.fontSizeDip * 0.75f);
+                            work.codeBadgeOptions.lineHeightMultiplier = 0.0f;
+                            work.codeBadgeOptionsReady                 = true;
+                        }
+                        auto label = work.codeLayouts ? work.codeLayouts->Find(CodeLayoutCache::Kind::Badge, language, work.codeBadgeOptions)
+                                                      : std::shared_ptr<const PreparedLayout>{};
+                        if (! label)
+                        {
+                            ::DxUi::RichText::Document labelSource{std::wstring(language)};
+                            auto projection = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                            auto prepared   = std::make_shared<PreparedLayout>();
+                            const HRESULT prepareResult =
+                                PreparedLayoutAccess::Prepare(*prepared, work.state->factory.get(), projection, work.codeBadgeOptions);
+                            if (FAILED(prepareResult))
+                            {
+                                result.status = LayoutPreparationStatus::Failed;
+                                result.result = prepareResult;
+                                next_.reset();
+                                return result;
+                            }
+                            ++DxUi::Detail::Work().rich.codeBadgeLayouts;
+                            ++result.layoutsPrepared;
+                            label = std::move(prepared);
+                            if (work.codeLayouts)
+                                work.codeLayouts->Insert(CodeLayoutCache::Kind::Badge, language, work.codeBadgeOptions, label);
                         }
                         (*work.state->codeLabels)[index] = std::move(label);
-                        ++result.layoutsPrepared;
                     }
                 }
             }
@@ -3117,35 +3150,52 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     work.codeNumberValue                        = 1u;
                     work.codeNumberY                            = 0.0f;
                     work.codeNumberNeeded                       = true;
+                    work.codeNumberOptionsReady                 = false;
                     continue;
                 }
                 const auto line  = lines[work.codeNumberLine];
                 const auto& text = box.layout.Content().text;
                 if (work.codeNumberNeeded && line.length > 0u)
                 {
-                    if (result.layoutsPrepared == budget.maximumLayouts)
-                        break;
-                    ::DxUi::RichText::Document labelSource{std::to_wstring(work.codeNumberValue)};
-                    auto projection             = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
-                    auto options                = work.state->options;
-                    options.widthDip            = box.codeGutter - 8.0f;
-                    options.fontFamily          = options.codeFontFamily;
-                    options.fontSizeDip         = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
-                    options.textAlignment       = DWRITE_TEXT_ALIGNMENT_TRAILING;
-                    options.readingDirection    = box.rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-                    auto layout                 = std::make_unique<PreparedLayout>();
-                    const HRESULT prepareResult = PreparedLayoutAccess::Prepare(*layout, work.state->factory.get(), projection, options);
-                    if (FAILED(prepareResult))
+                    // The options of a fence's numbers: its gutter format and reading direction (W7.6).
+                    if (! work.codeNumberOptionsReady)
                     {
-                        result.status = LayoutPreparationStatus::Failed;
-                        result.result = prepareResult;
-                        next_.reset();
-                        return result;
+                        auto& options               = work.codeNumberOptions;
+                        options                     = work.state->options;
+                        options.widthDip            = box.codeGutter - 8.0f;
+                        options.fontFamily          = options.codeFontFamily;
+                        options.fontSizeDip         = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
+                        options.textAlignment       = DWRITE_TEXT_ALIGNMENT_TRAILING;
+                        options.readingDirection    = box.rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+                        work.codeNumberOptionsReady = true;
+                    }
+                    const std::wstring digits = std::to_wstring(work.codeNumberValue);
+                    auto layout               = work.codeLayouts ? work.codeLayouts->Find(CodeLayoutCache::Kind::Number, digits, work.codeNumberOptions)
+                                                                 : std::shared_ptr<const PreparedLayout>{};
+                    if (! layout)
+                    {
+                        if (result.layoutsPrepared == budget.maximumLayouts)
+                            break;
+                        ::DxUi::RichText::Document labelSource{digits};
+                        auto projection             = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                        auto prepared               = std::make_shared<PreparedLayout>();
+                        const HRESULT prepareResult = PreparedLayoutAccess::Prepare(*prepared, work.state->factory.get(), projection, work.codeNumberOptions);
+                        if (FAILED(prepareResult))
+                        {
+                            result.status = LayoutPreparationStatus::Failed;
+                            result.result = prepareResult;
+                            next_.reset();
+                            return result;
+                        }
+                        ++DxUi::Detail::Work().rich.codeNumberLayouts;
+                        ++result.layoutsPrepared;
+                        layout = std::move(prepared);
+                        if (work.codeLayouts)
+                            work.codeLayouts->Insert(CodeLayoutCache::Kind::Number, digits, work.codeNumberOptions, layout);
                     }
                     const bool rtl = box.rtl;
                     const float x  = rtl ? box.x + box.width + 4.0f : box.x - box.codeGutter + 4.0f;
                     work.state->codeNumbers.push_back({std::move(layout), D2D1::Point2F(x, box.y + work.codeNumberY), box.frame});
-                    ++result.layoutsPrepared;
                 }
                 const auto end        = std::min(text.size(), work.codeNumberOffset + static_cast<std::size_t>(line.length));
                 work.codeNumberNeeded = end > work.codeNumberOffset && (text[end - 1u] == L'\r' || text[end - 1u] == L'\n');
@@ -3404,6 +3454,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 work.state->BuildHoverIndex();
                 state_ = std::move(work.state);
+                if (codeLayouts_)
+                    codeLayouts_->Publish();
                 next_.reset();
                 valid_ = true;
                 ++generation_;
@@ -3447,6 +3499,7 @@ void PreparedSemanticGeometry::Clear() noexcept
 {
     Cancel();
     state_.reset();
+    codeLayouts_.reset();
     valid_ = false;
 }
 bool PreparedSemanticGeometry::Ready() const noexcept
@@ -3923,6 +3976,17 @@ std::size_t PreparedSemanticGeometry::SourceSiteForSyntaxNode(std::size_t node) 
 }
 HRESULT PreparedSemanticGeometry::TryVisibleSourceRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
 {
+    return VisibleSourceRangeOf(top, bottom, output, false);
+}
+HRESULT PreparedSemanticGeometry::TryVisibleSourceRangeByFullScan(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
+{
+    return VisibleSourceRangeOf(top, bottom, output, true);
+}
+// The boxes whose frame meets the window are found through the paint index (W7.6), whose leaves are each box's frame and
+// ink, so a superset of them, visited in box order; the frame test below is the same test the full scan applies to every
+// box. Whether a box's own lines meet the window is decided by its layout.
+HRESULT PreparedSemanticGeometry::VisibleSourceRangeOf(float top, float bottom, std::pair<std::size_t, std::size_t>& output, bool fullScan) const
+{
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
@@ -3931,28 +3995,41 @@ HRESULT PreparedSemanticGeometry::TryVisibleSourceRange(float top, float bottom,
         return E_INVALIDARG;
     const auto& map   = state.document->Map();
     std::size_t first = map.Source().size(), last = 0u;
-    for (const auto& box : state.boxes)
-        if (box->frame.bottom > top && box->frame.top < bottom)
+    HRESULT failure  = S_OK;
+    const auto visit = [&](std::size_t index)
+    {
+        const auto& box = state.boxes[index];
+        if (FAILED(failure) || ! (box->frame.bottom > top && box->frame.top < bottom))
+            return;
+        if (box->sourceCaret)
         {
-            if (box->sourceCaret)
-            {
-                if (box->y >= bottom || box->y + box->height <= top)
-                    continue; // Empty source sites still require an intersecting caret line.
-                first = std::min(first, box->sourceCaret->source.first);
-                last  = std::max(last, box->sourceCaret->source.last);
-            }
-            else
-            {
-                std::pair<std::size_t, std::size_t> range{};
-                const HRESULT hr = box->layout.TryVisibleRange(top - box->y, bottom - box->y, range);
-                if (FAILED(hr))
-                    return hr;
-                if (range.first == range.second && (range.first != box->layout.Content().text.size() || box->y >= bottom || box->y + box->height <= top))
-                    continue; // A padded frame may intersect even though none of its text lines do.
-                first = std::min(first, map.ToSource(box->paragraph.display.first + range.first));
-                last  = std::max(last, map.ToSource(box->paragraph.display.first + range.second, MappingAffinity::Trailing));
-            }
+            if (box->y >= bottom || box->y + box->height <= top)
+                return; // Empty source sites still require an intersecting caret line.
+            first = std::min(first, box->sourceCaret->source.first);
+            last  = std::max(last, box->sourceCaret->source.last);
         }
+        else
+        {
+            std::pair<std::size_t, std::size_t> range{};
+            const HRESULT hr = box->layout.TryVisibleRange(top - box->y, bottom - box->y, range);
+            if (FAILED(hr))
+            {
+                failure = hr;
+                return;
+            }
+            if (range.first == range.second && (range.first != box->layout.Content().text.size() || box->y >= bottom || box->y + box->height <= top))
+                return; // A padded frame may intersect even though none of its text lines do.
+            first = std::min(first, map.ToSource(box->paragraph.display.first + range.first));
+            last  = std::max(last, map.ToSource(box->paragraph.display.first + range.second, MappingAffinity::Trailing));
+        }
+    };
+    if (fullScan)
+        for (std::size_t index = 0u; index < state.boxes.size(); ++index)
+            visit(index);
+    else
+        state.paintBoxes.ForEach(top, bottom, visit);
+    if (FAILED(failure))
+        return failure;
     output = first <= last ? std::pair{first, last} : std::pair{std::size_t{0u}, std::size_t{0u}};
     return S_OK;
 }
@@ -4229,6 +4306,14 @@ std::size_t PreparedSemanticGeometry::LineBoundary(std::size_t offset, bool end)
 }
 HRESULT PreparedSemanticGeometry::TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
 {
+    return VisibleRangeOf(top, bottom, output, false);
+}
+HRESULT PreparedSemanticGeometry::TryVisibleRangeByFullScan(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
+{
+    return VisibleRangeOf(top, bottom, output, true);
+}
+HRESULT PreparedSemanticGeometry::VisibleRangeOf(float top, float bottom, std::pair<std::size_t, std::size_t>& output, bool fullScan) const
+{
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
@@ -4236,20 +4321,62 @@ HRESULT PreparedSemanticGeometry::TryVisibleRange(float top, float bottom, std::
     if (! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
         return E_INVALIDARG;
     std::size_t first = state.document->Map().Display().size(), last = 0u;
-    for (const auto& box : state.boxes)
-        if (box->frame.bottom > top && box->frame.top < bottom)
+    HRESULT failure  = S_OK;
+    const auto visit = [&](std::size_t index)
+    {
+        const auto& box = state.boxes[index];
+        if (FAILED(failure) || ! (box->frame.bottom > top && box->frame.top < bottom))
+            return;
+        std::pair<std::size_t, std::size_t> range{};
+        const HRESULT hr = box->layout.TryVisibleRange(top - box->y, bottom - box->y, range);
+        if (FAILED(hr))
         {
-            std::pair<std::size_t, std::size_t> range{};
-            const HRESULT hr = box->layout.TryVisibleRange(top - box->y, bottom - box->y, range);
-            if (FAILED(hr))
-                return hr;
-            if (range.first == range.second && (range.first != box->layout.Content().text.size() || box->y >= bottom || box->y + box->height <= top))
-                continue; // Do not broaden visibility to an offscreen cell's first ACP.
-            first = std::min(first, box->paragraph.display.first + range.first);
-            last  = std::max(last, box->paragraph.display.first + range.second);
+            failure = hr;
+            return;
         }
+        if (range.first == range.second && (range.first != box->layout.Content().text.size() || box->y >= bottom || box->y + box->height <= top))
+            return; // Do not broaden visibility to an offscreen cell's first ACP.
+        first = std::min(first, box->paragraph.display.first + range.first);
+        last  = std::max(last, box->paragraph.display.first + range.second);
+    };
+    if (fullScan)
+        for (std::size_t index = 0u; index < state.boxes.size(); ++index)
+            visit(index);
+    else
+        state.paintBoxes.ForEach(top, bottom, visit);
+    if (FAILED(failure))
+        return failure;
     output = first <= last ? std::pair{first, last} : std::pair{std::size_t{0u}, std::size_t{0u}};
     return S_OK;
+}
+std::size_t PreparedSemanticGeometry::CodeNumberCount() const noexcept
+{
+    return state_ ? state_->codeNumbers.size() : 0u;
+}
+const PreparedLayout& PreparedSemanticGeometry::CodeNumberLayout(std::size_t index) const
+{
+    if (! state_ || index >= state_->codeNumbers.size())
+        Failure::FailContract(E_INVALIDARG);
+    return *state_->codeNumbers[index].layout;
+}
+D2D1_POINT_2F PreparedSemanticGeometry::CodeNumberOrigin(std::size_t index) const
+{
+    if (! state_ || index >= state_->codeNumbers.size())
+        Failure::FailContract(E_INVALIDARG);
+    return state_->codeNumbers[index].origin;
+}
+std::size_t PreparedSemanticGeometry::CodeLayoutCacheEntries() const noexcept
+{
+    return codeLayouts_ ? codeLayouts_->Entries() : 0u;
+}
+std::uint64_t PreparedSemanticGeometry::CodeLayoutCacheBytes() const noexcept
+{
+    return codeLayouts_ ? codeLayouts_->ResidentBytes() : 0u;
+}
+void PreparedSemanticGeometry::ReleaseCodeLayoutCache() noexcept
+{
+    if (codeLayouts_)
+        codeLayouts_->Clear();
 }
 std::pair<std::size_t, std::size_t> PreparedSemanticGeometry::VisibleRange(float top, float bottom) const
 {

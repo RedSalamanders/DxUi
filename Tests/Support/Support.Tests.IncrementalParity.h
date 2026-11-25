@@ -1173,6 +1173,98 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> RichChunksMultiplier
 {
     return {"richChunksMultiplier", kRichChunksSeeds, 20u, &BuildRichChunksMultiplierScene<Scene>, &StepRichChunks<Scene>};
 }
+// Script "richCodeBlocks" (W7.6): numbered code fences (the Subtle presentation) in a rich editor, two of one language, with
+// typing in prose and in a fence, Enter and Backspace in a fence (a new line number, and one fewer), width changes, DPI
+// changes, theme changes and a changed code font size (the gutter's format). The incremental scene carries the line number
+// and badge layouts of the previous publication; the fresh scene builds every layout again.
+inline constexpr std::array<uint64_t, 2u> kRichCodeBlocksSeeds{0x5EED0111u, 0x5EED0112u};
+template <typename Scene> void BuildRichCodeBlocksScene(Scene& scene)
+{
+    BuildRichScene(scene);
+    auto* editor      = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    std::wstring text = L"# Code blocks\r\n\r\nProse before the fences.\r\n\r\n```cpp\r\n";
+    for (size_t line = 0u; line < 64u; ++line)
+        text += std::format(L"int v{} = {};\r\n", line, line * 7u);
+    text += L"```\r\n\r\nBetween the fences.\r\n\r\n```python\r\n";
+    for (size_t line = 0u; line < 12u; ++line)
+        text += std::format(L"value_{} = {}\r\n", line, line);
+    text += L"```\r\n\r\n```cpp\r\nint last = 0;\r\nreturn last;\r\n```\r\n\r\nLast paragraph.\r\n";
+    editor->SetText(text);
+    auto appearance                 = editor->GetAppearance();
+    appearance.markdownPresentation = DxUi::RichText::MarkdownPresentationStyle::Subtle;
+    editor->SetAppearance(appearance);
+    editor->SetBounds(D2D1::RectF(12, 12, 620, 440));
+}
+template <typename Scene> void StepRichCodeBlocks(Scene& scene, Rng& rng, size_t /*step*/)
+{
+    auto* editor     = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    const auto place = [&](std::wstring_view marker, size_t after)
+    {
+        const std::wstring text = editor->GetText();
+        const size_t at         = text.find(marker);
+        if (at != std::wstring::npos)
+            editor->SetSelection({at + after, at + after});
+    };
+    switch (rng.Below(10u))
+    {
+        case 0u:
+            NoteStep("code prose character");
+            place(L"Prose before the fences.", 5u);
+            scene.Character(L"abc"[rng.Below(3u)]);
+            break;
+        case 1u:
+        case 2u:
+            NoteStep("code fence character");
+            place(L"int v30 =", 7u);
+            scene.Character(L"xyz"[rng.Below(3u)]);
+            break;
+        case 3u:
+            NoteStep("code fence enter");
+            place(L"int v40 =", 3u);
+            scene.Key(VK_RETURN);
+            break;
+        case 4u:
+            NoteStep("code fence backspace");
+            place(L"int v50 =", 0u);
+            scene.Key(VK_BACK);
+            break;
+        case 5u:
+        {
+            NoteStep("code width");
+            D2D1_RECT_F bounds = editor->GetBounds();
+            bounds.right       = 380.0f + 240.0f * rng.Unit();
+            editor->SetBounds(bounds);
+            break;
+        }
+        case 6u:
+        {
+            NoteStep("code dpi");
+            constexpr std::array<UINT, 3u> dpis{96u, 120u, 144u};
+            scene.SetDpi(dpis[rng.Below(3u)]);
+            break;
+        }
+        case 7u:
+            NoteStep("code theme");
+            scene.Host().SetTheme(ParityTheme(! scene.Host().GetTheme().dark));
+            break;
+        case 8u:
+        {
+            NoteStep("code font size");
+            auto appearance            = editor->GetAppearance();
+            appearance.codeFontSizeDip = 12.0f + 4.0f * rng.Unit();
+            editor->SetAppearance(appearance);
+            break;
+        }
+        default:
+            NoteStep("code scroll");
+            static_cast<void>(editor->SetScrollOffsetDip(rng.Unit() * 600.0f));
+            break;
+    }
+}
+template <typename Scene> [[nodiscard]] ParityScript<Scene> RichCodeBlocksScript() noexcept
+{
+    return {"richCodeBlocks", kRichCodeBlocksSeeds, 28u, &BuildRichCodeBlocksScene<Scene>, &StepRichCodeBlocks<Scene>};
+}
 
 // The registry's rows read populated before the drop on the controls and rich scenes together, except those the scenes
 // cannot populate (listed with the reason). A row that reads 0 on a scene that exercises it is not counting what it drops.

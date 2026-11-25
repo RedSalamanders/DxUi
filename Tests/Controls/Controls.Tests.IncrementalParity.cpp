@@ -174,6 +174,13 @@ void TestNativeIncrementalParityRichBlocks()
     RunParityScript(RichBlocksScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
 }
 
+// W7.6: line number and badge layouts carried across edits against a fresh preparation that builds every layout: pixels equal
+// at 96, 120 and 144 DPI, with theme, font size, width and scroll steps.
+void TestNativeIncrementalParityRichCodeBlocks()
+{
+    RunParityScript(RichCodeBlocksScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
 // W2.3: formulas, diagrams, raster images and SVG rasters carried across edits against a fresh preparation of every object.
 // W7.3: position-independent v0 chunks against a fresh preparation with the same chunking, Source and multiplier.
 void TestNativeIncrementalParityRichChunks()
@@ -441,7 +448,7 @@ void TestNativeIncrementalParityFx12DenseScreen()
 void TestNativeRetainedCachesDropToZero()
 {
     std::vector<RetainedCacheCount> populated;
-    for (auto build : {&BuildControlsScene<NativeParityScene>, &BuildRichScene<NativeParityScene>})
+    for (auto build : {&BuildControlsScene<NativeParityScene>, &BuildRichScene<NativeParityScene>, &BuildRichCodeBlocksScene<NativeParityScene>})
     {
         NativeParityScene scene;
         build(scene);
@@ -482,6 +489,7 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityInteraction);
     DXUI_RUN_TEST(TestNativeIncrementalParityRich);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
+    DXUI_RUN_TEST(TestNativeIncrementalParityRichCodeBlocks);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichObjects);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichObjectsDetectsAWrongCarry);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichChunks);

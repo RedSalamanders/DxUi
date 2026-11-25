@@ -97,6 +97,7 @@ private:
 // prepared layouts and indexes; it creates no device/context/HWND/worker/timer.
 // Composition never calls it. Source glyph fragments remain distinct from
 // explicit source caret sites and structural editing operations.
+class CodeLayoutCache;
 class PreparedSemanticGeometry
 {
 public:
@@ -179,6 +180,18 @@ public:
     [[nodiscard]] HRESULT TryLineBoundary(std::size_t offset, bool end, std::size_t& output) const;
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
     [[nodiscard]] HRESULT TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
+    // The two visible-range queries above find the boxes meeting the window through the paint index (W7.6). These two
+    // visit every box in order instead, as the queries did before: the reference the tests compare them with.
+    [[nodiscard]] HRESULT TryVisibleRangeByFullScan(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
+    [[nodiscard]] HRESULT TryVisibleSourceRangeByFullScan(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
+    // The line number layouts of the published geometry's numbered code fences, for tests: how many, the layout and the
+    // origin each is drawn at (W7.6), and what the layout cache of line numbers and badges holds (W7.6).
+    std::size_t CodeNumberCount() const noexcept;
+    const PreparedLayout& CodeNumberLayout(std::size_t index) const;
+    D2D1_POINT_2F CodeNumberOrigin(std::size_t index) const;
+    std::size_t CodeLayoutCacheEntries() const noexcept;
+    std::uint64_t CodeLayoutCacheBytes() const noexcept;
+    void ReleaseCodeLayoutCache() noexcept;
     // The retained editor opts into per-box content ink for diagram structure;
     // explicit snapshot/export callers retain their decoration/stroke contract.
     void Draw(ID2D1RenderTarget* target,
@@ -217,6 +230,9 @@ private:
     struct Preparation;
     std::unique_ptr<State> state_;
     std::unique_ptr<Preparation> next_;
+    std::unique_ptr<CodeLayoutCache> codeLayouts_; // W7.6; registered as a retained cache (DxUi.RetainedCaches.cpp)
+    [[nodiscard]] HRESULT VisibleRangeOf(float top, float bottom, std::pair<std::size_t, std::size_t>& output, bool fullScan) const;
+    [[nodiscard]] HRESULT VisibleSourceRangeOf(float top, float bottom, std::pair<std::size_t, std::size_t>& output, bool fullScan) const;
     std::vector<NativeObjectRejection> rejectedNativeObjects_;
     std::uint64_t generation_{};
     bool valid_{};

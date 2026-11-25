@@ -402,7 +402,9 @@ records the independent readiness, viewport, allocation and source-coordinate ch
 For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
 and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.
 Prepared bounded token spans change ink only. The Subtle frame shows a language
-badge and physical line numbers within the documented bounds. Register
+badge and physical line numbers within the documented bounds; their layouts are
+built once per distinct number and language and shared across fences and edits
+(a typed character builds none). Register
 `SetOnCodeCopyRequested` with a localized accessible name to expose pointer,
 keyboard and UIA copy intent; the callback receives counted rendered code and
 owns clipboard transport. All of these features still require the project's

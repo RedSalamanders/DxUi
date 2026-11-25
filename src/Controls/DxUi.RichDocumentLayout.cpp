@@ -1283,10 +1283,15 @@ std::pair<std::size_t, std::size_t> PreparedDocumentLayout::VisibleRange(float t
 }
 HRESULT PreparedDocumentLayout::TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
 {
+    return Detail::PreparedDocumentLayoutAccess::VisibleRange(*this, top, bottom, output, false);
+}
+HRESULT Detail::PreparedDocumentLayoutAccess::VisibleRange(
+    const PreparedDocumentLayout& owner, float top, float bottom, std::pair<std::size_t, std::size_t>& output, bool stepping)
+{
     const Failure::Scope failureScope;
-    if (! Ready())
+    if (! owner.Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *owner.state_;
     if (! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
         return E_INVALIDARG;
     if (state.referenceForGeometry)
@@ -1303,34 +1308,74 @@ HRESULT PreparedDocumentLayout::TryVisibleRange(float top, float bottom, std::pa
             continue;
         // The chunk's lines as the caret places them (each line's top rounded once from the double-precision placement,
         // plus its height): a line is visible when that placed box meets the viewport, the rule of the geometry oracle.
-        const auto& layout    = chunk.geometry->layout;
-        const auto& text      = layout.Content().text;
-        std::size_t lineStart = 0u;
+        const auto& layout = chunk.geometry->layout;
+        const auto& text   = layout.Content().text;
         std::optional<std::size_t> chunkFirst;
         std::size_t chunkLast  = 0u;
-        const auto lineMetrics = layout.LineMetrics();
+        const auto lineMetrics = Detail::PreparedLayoutAccess::LineMetrics(layout);
         // Line starts plus the final end offset, as PreparedLayout::VisibleRange walks them. A nonfinal chunk's empty line
         // after its terminal LF, and its end offset, are the next chunk's first line.
         const bool final  = index + 1u == state.chunks.size();
         const auto walked = final                                                             ? lineMetrics.size() + 1u
                             : ! text.empty() && text.back() == L'\n' && ! lineMetrics.empty() ? lineMetrics.size() - 1u
                                                                                               : lineMetrics.size();
-        for (std::size_t line = 0u; line < walked; ++line)
+        const auto starts = Detail::PreparedLayoutAccess::LineStarts(layout);
+        const auto placed = [&](std::size_t line, CaretGeometry& caret) -> HRESULT
         {
-            CaretGeometry caret{};
-            if (const auto status = layout.TryCaret(lineStart, caret); FAILED(status))
+            if (const auto status = layout.TryCaret(starts[line], caret); FAILED(status))
                 return status;
-            const auto lineTop = static_cast<float>(chunk.top + caret.y);
-            if (lineTop >= bottom)
-                break;
-            const auto lineEnd = line < lineMetrics.size() ? lineStart + lineMetrics[line].length : text.size();
-            if (lineTop + caret.height > top)
+            caret.y = static_cast<float>(chunk.top + caret.y);
+            return S_OK;
+        };
+        if (! stepping && Detail::PreparedLayoutAccess::CaretBoxesStacked(layout))
+        {
+            // The lines meeting the window are one run when the chunk's caret boxes are stacked (the argument at
+            // PreparedLayout::TryVisibleRange), also after the placement, which adds one number to every top: the run
+            // is found by a search over the real caret boxes, not by stepping from the chunk's first line.
+            HRESULT failure = S_OK;
+            const auto box  = [&](std::size_t line)
             {
-                if (! chunkFirst)
-                    chunkFirst = lineStart;
-                chunkLast = line < lineMetrics.size() ? lineEnd : text.size();
+                CaretGeometry caret{};
+                if (const auto status = placed(line, caret); FAILED(status))
+                    failure = status;
+                return caret;
+            };
+            const auto meetsTop = [&](std::size_t line)
+            {
+                const auto caret = box(line);
+                return caret.y + caret.height > top;
+            };
+            const auto reachesBottom = [&](std::size_t line) { return box(line).y >= bottom; };
+            const auto hintOf        = [&](float y) { return Detail::PreparedLayoutAccess::LineHint(layout, static_cast<float>(y - chunk.top)); };
+            const auto firstVisible  = Detail::PreparedLayoutAccess::FirstLineWhere(walked, hintOf(top), meetsTop, failure);
+            if (FAILED(failure))
+                return failure;
+            const auto stop = std::max(firstVisible, Detail::PreparedLayoutAccess::FirstLineWhere(walked, hintOf(bottom), reachesBottom, failure));
+            if (FAILED(failure))
+                return failure;
+            if (firstVisible < stop)
+            {
+                chunkFirst = starts[firstVisible];
+                chunkLast  = stop - 1u < lineMetrics.size() ? starts[stop] : text.size();
             }
-            lineStart = lineEnd;
+        }
+        else
+        {
+            for (std::size_t line = 0u; line < walked; ++line)
+            {
+                CaretGeometry caret{};
+                if (const auto status = placed(line, caret); FAILED(status))
+                    return status;
+                const auto lineTop = caret.y;
+                if (lineTop >= bottom)
+                    break;
+                if (lineTop + caret.height > top)
+                {
+                    if (! chunkFirst)
+                        chunkFirst = starts[line];
+                    chunkLast = line < lineMetrics.size() ? starts[line + 1u] : text.size();
+                }
+            }
         }
         const std::pair<std::size_t, std::size_t> range{chunkFirst.value_or(0u), chunkLast};
         // A collapsed range at the final display ACP can be a visible empty

@@ -4076,6 +4076,9 @@ private:
     void RequireCurrentLayout(const ControlHost& host) const;
     HRESULT UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;
+    // The layout cache of line numbers and language badges of numbered code fences (W7.6): what it holds, and its release.
+    void RetainedCodeLayouts(size_t& entries, uint64_t& bytes) const noexcept;
+    void ReleaseCodeLayouts() const noexcept;
     friend struct RetainedCacheAccess;
     void ResetDocumentBinding();
     void UpdateSemanticSourceRegion() noexcept;

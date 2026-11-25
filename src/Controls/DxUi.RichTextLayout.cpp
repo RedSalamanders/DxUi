@@ -3,6 +3,7 @@
 #include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
 #include "Support/CountedCreation.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -15,6 +16,12 @@
 #include <wil/result.h>
 namespace DxUi::RichText
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace Detail
+{
+thread_local bool testRichForceVisibleRangeSearch{};
+} // namespace Detail
+#endif
 namespace
 {
 void Check(HRESULT result, const char*)
@@ -33,6 +40,8 @@ HRESULT NativeOverhangMetrics(IDWriteTextLayout* layout, DWRITE_OVERHANG_METRICS
 {
     return layout->GetOverhangMetrics(metrics);
 }
+// Layouts of more lines than this keep the sums of their line heights as the hint of where TryVisibleRange starts (W7.6).
+inline constexpr std::size_t kVisibleRangeHintLines = 16u;
 } // namespace
 struct PreparedLayout::State
 {
@@ -40,7 +49,8 @@ struct PreparedLayout::State
         : retirement{std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)},
           clusters(0u),
           lines(0u),
-          lineMetrics(0u)
+          lineMetrics(0u),
+          lineTops(0u)
     {
     }
     Projection retirement;
@@ -52,6 +62,12 @@ struct PreparedLayout::State
     std::vector<DWRITE_LINE_METRICS> lineMetrics;
     float height{};
     float drawingTop{}, drawingBottom{};
+    // The tops of the lines as the sums of their heights, with the end of the last line: a hint, never an answer, for
+    // where TryVisibleRange starts looking (DirectWrite's caret tops differ from these sums, W7.6). Empty for a layout
+    // of few lines, which searches without it.
+    std::vector<float> lineTops;
+    // Whether the lines' caret boxes are known to be stacked, so that TryVisibleRange may search (see there).
+    bool stackedCaretBoxes{};
     float textLeft{}, textWidth{};
     // Every layout starts at its own origin 0 (W7.3): the SDK buffer equals the projection, so this offset of the
     // renderers' SDK positions stays 0 and no private positioning object exists.
@@ -412,6 +428,33 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
         });
     }
+    // Caret boxes stacked (W7.6, the argument at PreparedLayout::TryVisibleRange): one style throughout, no inline object
+    // and no script run; in uniform spacing also printable ASCII only, so that one font places every line's first glyph.
+    next->stackedCaretBoxes = ! object && objects.empty() && ! scripts;
+    if (next->stackedCaretBoxes && ! projection.runs.empty())
+    {
+        std::size_t covered = 0u;
+        for (const auto& run : projection.runs)
+        {
+            covered += run.length;
+            next->stackedCaretBoxes = next->stackedCaretBoxes && run.flags == projection.runs.front().flags && run.heading == projection.runs.front().heading;
+        }
+        next->stackedCaretBoxes = next->stackedCaretBoxes && covered == projection.text.size();
+    }
+    if (next->stackedCaretBoxes && (lineHeight > 0.0f || spacing.scripts))
+        next->stackedCaretBoxes = std::ranges::all_of(
+            projection.text, [](wchar_t unit) { return (unit >= L' ' && unit <= L'~') || unit == L'\n' || unit == L'\r' || unit == L'\t'; });
+    if (lineMetrics.size() > kVisibleRangeHintLines)
+    {
+        next->lineTops.reserve(lineMetrics.size() + 1u);
+        double top = 0.0;
+        for (const auto& line : lineMetrics)
+        {
+            next->lineTops.push_back(static_cast<float>(top));
+            top += line.height;
+        }
+        next->lineTops.push_back(static_cast<float>(top));
+    }
     owner.projection_   = std::move(projection);
     next->layout        = std::move(layout);
     next->clusters      = std::move(clusters);
@@ -517,6 +560,7 @@ HRESULT PreparedLayout::TryCaret(std::size_t position, CaretAffinity affinity, C
     const auto anchor   = upstream ? position - 1u : position;
     float x = 0, y = 0;
     DWRITE_HIT_TEST_METRICS metrics{};
+    ++::DxUi::Detail::Work().rich.caretHitTests;
     const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(anchor) + state_->textOffset, upstream ? TRUE : FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
@@ -658,25 +702,99 @@ HRESULT PreparedLayout::TryVisibleRange(float top, float bottom, std::pair<std::
 {
     if (! state_ || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
         return E_INVALIDARG;
-    std::optional<std::size_t> first;
-    std::size_t last = 0u;
-    for (std::size_t index = 0; index < state_->lines.size(); ++index)
+    const auto& lines = state_->lines;
+    const auto count  = lines.size();
+    HRESULT failure   = S_OK;
+    const auto box    = [&](std::size_t index) -> CaretGeometry
     {
         CaretGeometry caret{};
-        const auto hr = TryCaret(state_->lines[index], caret);
-        if (FAILED(hr))
-            return hr;
-        if (caret.y >= bottom)
-            break;
-        if (caret.y + caret.height > top)
+        if (const auto hr = TryCaret(lines[index], caret); FAILED(hr))
+            failure = hr;
+        return caret;
+    };
+    bool search = state_->stackedCaretBoxes;
+#if DXUI_ENABLE_DIAGNOSTICS
+    search = search || Detail::testRichForceVisibleRangeSearch;
+#endif
+    if (! search)
+    {
+        // Stepping from the first line, which reads a caret box per line up to the window: the layouts whose caret
+        // boxes are not known to be stacked (below) take it.
+        std::optional<std::size_t> first;
+        std::size_t last = 0u;
+        for (std::size_t index = 0; index < count; ++index)
         {
-            if (! first)
-                first = state_->lines[index];
-            last = index + 1u < state_->lines.size() ? state_->lines[index + 1u] : Content().text.size();
+            const auto caret = box(index);
+            if (FAILED(failure))
+                return failure;
+            if (caret.y >= bottom)
+                break;
+            if (caret.y + caret.height > top)
+            {
+                if (! first)
+                    first = lines[index];
+                last = index + 1u < count ? lines[index + 1u] : Content().text.size();
+            }
         }
+        output = {first.value_or(0u), last};
+        return S_OK;
     }
-    output = {first.value_or(0u), last};
+    // W7.6. The lines whose caret box (TryCaret at the line's first offset: DirectWrite's hit-test box) meets [top, bottom)
+    // are one run of line indexes if the caret boxes are stacked, that is, a box's top and its bottom never decrease
+    // from one line to the next. Preparation decides that (State::stackedCaretBoxes, set where the layout is built):
+    // every line's caret box comes from the same face, size and spacing, so its offset inside its line and its height
+    // are the same on every line; line tops strictly increase, and so do the boxes' tops and bottoms. That holds for text
+    // of one style (every style run alike, covering the text), with no inline object and no script run, in natural
+    // spacing (the box is then the line's own: the tests find its height equal to the line metrics' on every line) and in
+    // uniform spacing for printable ASCII (one font on every line; a fallback font on a line's first glyph moves its box
+    // inside the line, which a line-height multiplier below the font's height lets leave it). Other layouts step.
+    // The run then starts at the first line whose box bottom lies below the window's top and ends before the first line
+    // whose box top reaches the window's bottom: both are found by a search over the real caret boxes, which starts at the
+    // line the sums of the line heights name (a hint: DirectWrite's caret tops are not those sums) and widens from it by
+    // doubling steps, so the caret reads do not grow with the line number. The answer is the stepping scan's, which the
+    // tests keep as the reference.
+    const auto meetsTop = [&](std::size_t index)
+    {
+        const auto caret = box(index);
+        return caret.y + caret.height > top;
+    };
+    const auto reachesBottom = [&](std::size_t index) { return box(index).y >= bottom; };
+    const auto firstVisible  = Detail::PreparedLayoutAccess::FirstLineWhere(count, Detail::PreparedLayoutAccess::LineHint(*this, top), meetsTop, failure);
+    if (FAILED(failure))
+        return failure;
+    // `reachesBottom` holds from some line on, and that line is not before the first visible one.
+    const auto stop = std::max(
+        firstVisible, Detail::PreparedLayoutAccess::FirstLineWhere(count, Detail::PreparedLayoutAccess::LineHint(*this, bottom), reachesBottom, failure));
+    if (FAILED(failure))
+        return failure;
+    if (firstVisible >= stop)
+    {
+        output = {0u, 0u};
+        return S_OK;
+    }
+    output = {lines[firstVisible], stop < count ? lines[stop] : Content().text.size()};
     return S_OK;
+}
+bool Detail::PreparedLayoutAccess::CaretBoxesStacked(const PreparedLayout& owner) noexcept
+{
+    return owner.state_ && owner.state_->stackedCaretBoxes;
+}
+std::span<const std::size_t> Detail::PreparedLayoutAccess::LineStarts(const PreparedLayout& owner)
+{
+    if (! owner.state_)
+        Failure::FailContract(E_INVALIDARG);
+    return owner.state_->lines;
+}
+std::size_t Detail::PreparedLayoutAccess::LineHint(const PreparedLayout& owner, float y) noexcept
+{
+    if (! owner.state_)
+        return 0u;
+    const auto& tops = owner.state_->lineTops;
+    if (tops.empty())
+        return owner.state_->lines.size() / 2u;
+    // The line whose summed top is the last at or above y.
+    const auto found = std::upper_bound(tops.begin(), tops.end(), y);
+    return found == tops.begin() ? 0u : static_cast<std::size_t>(std::distance(tops.begin(), found)) - 1u;
 }
 std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, float bottom) const
 {

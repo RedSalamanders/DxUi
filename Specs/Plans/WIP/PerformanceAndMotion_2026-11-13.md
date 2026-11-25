@@ -1464,7 +1464,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     insert ≤ the table length, in Subtle and Default; probe layouts per resize step 0.
   - **Needs**: `W0.1`, `W7.1`. **Size**: M.
 
-- [ ] **W7.6 Code blocks.**
+- [x] **W7.6 Code blocks.**
   - **Why**: `Phase::CodeNumbers` builds a `Document`, `Project()` and `PreparedLayout` per numbered line
     (`DxUi.RichSemanticGeometry.cpp:2924-2944`), up to 4,096 per geometry (`:2909`), on every edit, width or option change;
     each language badge gets its own layout (`:2849-2864`); every visible number and badge pushes a clip per paint

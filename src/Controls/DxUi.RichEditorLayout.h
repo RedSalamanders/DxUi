@@ -450,6 +450,19 @@ public:
     {
         return activeSemantic_ && semantic_.Ready() ? &semantic_ : nullptr;
     }
+    // The semantic geometry's cache of line number and badge layouts (W7.6): what it holds, and its release.
+    std::size_t CodeLayoutCacheEntries() const noexcept
+    {
+        return semantic_.CodeLayoutCacheEntries();
+    }
+    std::uint64_t CodeLayoutCacheBytes() const noexcept
+    {
+        return semantic_.CodeLayoutCacheBytes();
+    }
+    void ReleaseCodeLayoutCache() noexcept
+    {
+        semantic_.ReleaseCodeLayoutCache();
+    }
 
 private:
     HRESULT beginResult_ = S_OK;

@@ -91,6 +91,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 // After the performance fixtures: the W2.2 gate drives FX2, the W0.7 attribution runs catalog fixtures.
 #include "Embedded.Tests.AssignSetters.h"
 #include "Embedded.Tests.ChunkPlacementFx8.h"
+#include "Embedded.Tests.CodeBlocksFx8.h"
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
 #include "Embedded.Tests.FrameAttribution.h"
 #include "Embedded.Tests.MathDiagramsFx8.h"
@@ -2093,6 +2094,7 @@ __declspec(noinline) static int RunFunctionalTests()
         ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
         MathDiagramsFx8::Run();
         MathPaintAllocations::Run();
+        CodeBlocksFx8::TestFx8CodeBlockLayoutsPerEdit();
         PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
         return 0;
     }
@@ -2113,6 +2115,12 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-chunk-placement")
     {
         ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
+        return 0;
+    }
+    // Plan W7.6 alone: the FX8 code-block gates (line number and badge layouts per edit).
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-code-blocks")
+    {
+        CodeBlocksFx8::TestFx8CodeBlockLayoutsPerEdit();
         return 0;
     }
     // W3.5 alone: the embedded animation request (API revision 6) and its application-wake gates on FX1, FX13 and FX14.
@@ -2406,6 +2414,7 @@ __declspec(noinline) static int RunFunctionalTests()
     ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
     MathDiagramsFx8::Run();
     MathPaintAllocations::Run();
+    CodeBlocksFx8::TestFx8CodeBlockLayoutsPerEdit();
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);

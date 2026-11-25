@@ -31,6 +31,10 @@ struct PreparedDocumentLayoutAccess
 {
     static LayoutAdvance Advance(PreparedDocumentLayout& layout, const LayoutWorkBudget& budget, const DocumentViewport& viewport);
     [[nodiscard]] static bool Partial(const PreparedDocumentLayout& layout) noexcept;
+    // PreparedDocumentLayout::TryVisibleRange (W7.6): a chunk whose caret boxes are stacked is searched for the lines
+    // meeting the window; `stepping` visits every line from the chunk's first as the query did before, the reference
+    // of the tests.
+    static HRESULT VisibleRange(const PreparedDocumentLayout& owner, float top, float bottom, std::pair<std::size_t, std::size_t>& output, bool stepping);
     static HRESULT DrawPartial(
         const PreparedDocumentLayout& layout, ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom);
     static HRESULT PartialSourceTop(const PreparedDocumentLayout& layout, std::size_t source, float& y);
