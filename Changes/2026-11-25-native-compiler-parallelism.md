@@ -1,1 +1,0 @@
-- Enable the common MSVC parallel compilation setting and apply the requested worker count to MSBuild and the compiler.
