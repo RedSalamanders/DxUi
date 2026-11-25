@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Enable the common MSVC parallel compilation setting and apply the requested worker count to MSBuild and the compiler.
 - Declare the pinned Release optimization targets in the consumer interface and verify the explicit source-project import.
 - Share DxUi's Release compiler and linker settings through an explicit native build policy opt-in.
 - Select the pinned compiler host in the relocated consumer before MSVC resolves the toolset.
