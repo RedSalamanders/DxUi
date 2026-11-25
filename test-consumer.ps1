@@ -69,7 +69,7 @@ Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
 $installation=Get-DxUiVisualStudioInstallation
 $msbuild=Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 Import-Module (Join-Path $checkout 'Tools/ConsumerBuild.psm1') -Force
-Import-Module (Join-Path $checkout 'Build/BuildConsole.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Build/BuildConsole.psm1') -Force
 $buildIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:$DisableStlAnnotations
 $otherIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:(-not $DisableStlAnnotations)
 if ($buildIdentity.Fingerprint -eq $otherIdentity.Fingerprint) { throw 'STL annotation policy did not isolate the dependency output fingerprint.' }
@@ -135,7 +135,7 @@ $project | Set-Content -LiteralPath $projectPath -Encoding utf8
 $consumerBuildLog=Join-Path $diagnosticRoot ($diagnosticName+'-ExternalConsumer.build.log')
 & $msbuild $projectPath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$consumerBuildLog;verbosity=normal;encoding=UTF-8"
 if ($LASTEXITCODE -ne 0) { throw 'The external public consumer failed to build.' }
-Assert-NativeBuildDiagnostics -LogPath $consumerBuildLog
+Assert-NativeBuildDiagnostics -LogPath $consumerBuildLog -RequireBuildSummary
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --output (Join-Path $consumer 'public-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --complex-ui --output (Join-Path $consumer 'complex-consumer.png')
@@ -175,7 +175,7 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     $moduleBuildLog=Join-Path $diagnosticRoot ($diagnosticName+"-$moduleName.build.log")
     & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$moduleBuildLog;verbosity=normal;encoding=UTF-8"
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
-    Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
+    Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog -RequireBuildSummary
 }
 $savedErrorPreference = $ErrorActionPreference
 try {

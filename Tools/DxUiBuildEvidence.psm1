@@ -58,7 +58,11 @@ function Get-ScopedSourceIdentity {
     param([string] $Root, [switch] $CompiledOnly, [string] $ToolingEngineRoot = '')
     $source = Get-ScopedMapIdentity (Get-ScopedSourceMap -Root $Root -CompiledOnly:$CompiledOnly)
     if ($ToolingEngineRoot -and -not (Test-Path -LiteralPath (Join-Path $Root '.ci/project.json') -PathType Leaf)) {
-        throw 'An explicit tooling engine reader requires the side own .ci/project.json.'
+        # Pre-CI sides keep the standalone lease and bind the reader used for diagnostics.
+        $reader = [IO.Path]::GetFullPath($ToolingEngineRoot).TrimEnd('\','/')
+        Import-Module (Join-Path $reader 'Tools/Modules/Ci.SourceInputs.psm1') -ErrorAction Stop
+        $readerInputs = Get-CiPinnedEngineInputsIdentity -Root (Split-Path $reader -Parent) -EngineRoot $reader
+        return Get-ScopedDigest "$source`0`0$readerInputs"
     }
     # Generated engine code is outside Git's product inventory, but executes the governed tools.
     # Keep it separate from iteration maps so it cannot masquerade as a changed product file.

@@ -18,8 +18,9 @@ this diagnostic reader option before discovery or mutation.
 Pair preparation restores only an absent side engine from the local clean harness
 checkout, then checks out the side's original exact pin with Git long paths enabled.
 Existing engines are verified and preserved; no dirty or wrong-pin checkout is reset.
-Pre-CI historical sides acquire no engine. Freeze both engine identities across side
-preparation, build, SkipBuild/preflight and every measurement. Record them per side;
+Pre-CI historical sides retain their standalone profile lease and bind the common pinned
+reader that supplies the strict build console. They have no side engine identity.
+Freeze every applicable engine identity across side preparation, build, SkipBuild/preflight and every measurement. Record them per side;
 changed inputs refuse the study. Never copy current reader code into an older engine
 or advance a historical pin to make the comparison work. This supplies diagnostic
 input provenance, not native/SDK/Full acceptance.
