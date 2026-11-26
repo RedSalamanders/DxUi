@@ -160,6 +160,22 @@ int wmain(int argc, wchar_t** argv)
             DxUi::Failure::FailContract(result);
     });
 
+    // The failed-check self-test, reachable only through --failed-check-self-test, which Tools/tests/Test-TestWatchdog.ps1 runs: a
+    // check that fails while a shown window host and a UI Automation provider are alive must end the run at once, with its message
+    // and the test's name, exit code 1, and no dump or fail-fast from the static failure host's destructor.
+    if (argc == 2 && std::wstring_view(argv[1]) == L"--failed-check-self-test")
+    {
+        AttachedHostWindow window;
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+        provider.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        DxUiTestFailureReports::CurrentTestName().store("FailedCheckSelfTest");
+        Require(provider != nullptr, "the self-test holds a live UI Automation provider");
+        Require(false, "the failed-check self-test fails this check on purpose");
+        std::fputs("The failed check returned instead of ending the run.\n", stderr);
+        return 0;
+    }
+
     // A performance fixture's WARP receipt on the window host (Tests/README.md, "Performance fixtures").
     if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-receipt")
         return RunWindowFixtureReceiptCommand(argc, argv);

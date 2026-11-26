@@ -44,7 +44,7 @@ static void Check(bool value, const char* text)
     if (! value)
     {
         DxUiTestFailureReports::WriteFailure(text);
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 static void Hr(HRESULT hr, const char* text)
@@ -1657,6 +1657,31 @@ __declspec(noinline) static int RunFunctionalTests()
     // -CandidateEnvironment compares one executable with itself under it).
     if (wchar_t value[8]{}; GetEnvironmentVariableW(L"DXUI_PAINT_REGIONS", value, 8u) == 1u && value[0] == L'0')
         DxUi::Detail::SetPaintRegionsEnabledForTest(false);
+    // The failed-check self-test (Tools/tests/Test-TestWatchdog.ps1): a check that fails while a window host and a UI Automation
+    // provider are alive must end the run at once with its message, exit code 1 and no dump or fail-fast from the failure host.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--failed-check-self-test")
+    {
+        using namespace DxUi;
+        const auto instance        = GetModuleHandleW(nullptr);
+        constexpr PCWSTR className = L"DxUi.Tests.AccessibilityRetirement";
+        WNDCLASSW windowClass{};
+        windowClass.lpfnWndProc   = RetirementAllocationWindowProc;
+        windowClass.hInstance     = instance;
+        windowClass.lpszClassName = className;
+        Check(RegisterClassW(&windowClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the self-test window class");
+        ControlHost host;
+        wil::unique_hwnd window(CreateWindowExW(
+            WS_EX_NOACTIVATE, className, L"Failed check self-test", WS_OVERLAPPED, -32000, -32000, 320, 200, nullptr, nullptr, instance, &host));
+        Check(bool(window) && host.Attach(window.get()), "attach the self-test window without focus");
+        ShowWindow(window.get(), SW_SHOWNOACTIVATE);
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+        provider.attach(CreateWindowHostAccessibilityProvider(window.get()));
+        DxUiTestFailureReports::CurrentTestName().store("FailedCheckSelfTest");
+        Check(bool(provider), "the self-test holds a live UI Automation provider");
+        Check(false, "the failed-check self-test fails this check on purpose");
+        std::fputs("The failed check returned instead of ending the run.\n", stderr);
+        return 0;
+    }
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake" || std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement" ||
          std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement" || std::wstring_view(__wargv[1]) == L"--test-form-clear-retirement"))

@@ -1,4 +1,5 @@
 #include "Controls/TextClipboard.h"
+#include "Support.Tests.FailureReports.h"
 #pragma once
 
 #include "Controls/DxUi.Internal.h"
@@ -66,7 +67,7 @@ inline void Require(bool condition, const char* message)
     if (! condition)
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -199,7 +200,9 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     const auto started = std::chrono::steady_clock::now();
     {
         const DxUi::TestSupport::ScopedTestDeadline deadline(name);
+        DxUiTestFailureReports::CurrentTestName().store(name);
         test();
+        DxUiTestFailureReports::CurrentTestName().store(nullptr);
     }
     std::cerr << std::format("  [DONE] {} ({:.3f} s)\n", name, std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count()) << std::flush;
     return true;
@@ -432,7 +435,7 @@ inline void RequireColorNear(const D2D1_COLOR_F& actual, const D2D1_COLOR_F& exp
         ! nearlyEqual(actual.a, expected.a))
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -443,7 +446,7 @@ inline void RequireColorDifferent(const D2D1_COLOR_F& lhs, const D2D1_COLOR_F& r
     if (nearlyEqual(lhs.r, rhs.r) && nearlyEqual(lhs.g, rhs.g) && nearlyEqual(lhs.b, rhs.b) && nearlyEqual(lhs.a, rhs.a))
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -454,7 +457,7 @@ inline void RequirePointNear(const POINT& actual, const POINT& expected, const c
     if (! nearlyEqual(actual.x, expected.x) || ! nearlyEqual(actual.y, expected.y))
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -463,7 +466,7 @@ inline void RequirePointNear(const POINT& actual, const POINT& expected, const c
     if (FAILED(hr))
     {
         std::cerr << "FAILED: " << message << " hr=0x" << std::hex << static_cast<unsigned long>(hr) << std::dec << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 // Tests explicitly drain owner turns; production never calls a synchronous
@@ -508,7 +511,7 @@ inline void RequireRectNear(const RECT& actual, const RECT& expected, const char
         ! nearlyEqual(actual.bottom, expected.bottom))
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -517,7 +520,7 @@ inline void RequireRectHasArea(const D2D1_RECT_F& rect, const char* message)
     if (rect.right <= rect.left || rect.bottom <= rect.top)
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -526,7 +529,7 @@ inline void RequireFloatNear(float actual, float expected, float epsilon, const 
     if (std::fabs(actual - expected) > epsilon)
     {
         std::cerr << "FAILED: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 
@@ -621,7 +624,7 @@ inline std::filesystem::path FindRepoRootForDxUiTests()
     }
 
     std::cerr << "FAILED: unable to locate repo root for DxUi baseline tests\n";
-    std::exit(1);
+    DxUiTestFailureReports::EndRunAfterFailedCheck();
 }
 
 inline std::filesystem::path GetDxUiBaselineDirectory()
@@ -835,7 +838,7 @@ inline void VerifyOrUpdateBaselineForTest(const char* context,
         static_cast<void>(SaveWindowHostBitmapCaptureAsPngForTest(actualPath, actual));
         std::cerr << "FAILED: " << context << " diffRatio=" << stats.DifferenceRatio() << " maxChannelDelta=" << static_cast<int>(stats.maxChannelDelta)
                   << " actual=" << actualPath.string() << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 

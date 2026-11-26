@@ -23,6 +23,7 @@
 //   ParityFrame Capture(bool fresh);
 #include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Support.Tests.FailureReports.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 #include <DxUi/DxUi.h>
 #include <DxUi/RichImage.h>
@@ -56,7 +57,7 @@ inline constexpr size_t kUiaNodeLimit = 4096u;
 [[noreturn]] inline void Fail(const std::string& message)
 {
     std::cerr << "FAILED: " << message << '\n' << std::flush;
-    std::exit(1);
+    DxUiTestFailureReports::EndRunAfterFailedCheck();
 }
 
 // splitmix64: the same seed gives the same steps in both scenes, in every build and on every machine.

@@ -5,6 +5,7 @@
 // SourceDisplayMap anchors to prove the sparse map answers the same.
 #include "Controls/DxUi.RichSemanticValues.h"
 #include "Controls/DxUi.SemanticExtensions.h"
+#include "Support.Tests.FailureReports.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include "Support/WorkCounters.h"
 #include <chrono>
@@ -23,7 +24,7 @@ using RichSemanticTests::Check;
 [[noreturn]] inline void Fail(const std::string& message)
 {
     std::cerr << "FAIL semantic projection: " << message << '\n' << std::flush;
-    std::exit(1);
+    DxUiTestFailureReports::EndRunAfterFailedCheck();
 }
 inline void Expect(bool condition, const std::string& context, std::string_view what)
 {

@@ -4,6 +4,7 @@
 // pixel, with the same scene painted whole with regions and culling off (RetainedCaches.Tests.Hooks.h). A difference fails the
 // running test at once with the count and the bounding box of the differing pixels. DXUI_FRAME_VERIFY=report logs every
 // difference and lets the run go on (a survey of what the verifier finds); DXUI_FRAME_VERIFY=0 turns the verifier off.
+#include "Support.Tests.FailureReports.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 
 #include <array>
@@ -46,7 +47,7 @@ inline void OnMismatchFail(const char* description) noexcept
               << "FAILED: W4.10 frame verifier: a frame painted with regions and culling differs from the same scene painted whole with "
                  "regions and culling off\n"
               << std::flush;
-    std::exit(1);
+    DxUiTestFailureReports::EndRunAfterFailedCheck();
 }
 
 // The test functions on the stack of a mismatch (report mode: which test made the frame).

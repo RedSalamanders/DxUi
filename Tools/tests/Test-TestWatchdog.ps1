@@ -157,6 +157,26 @@ Invoke-TestCase 'a failed runtime check ends the run with its report instead of 
         Assert-Equal 0 (Get-Lines $run 'returned instead of ending').Count 'the failed check does not return'
     }
 }
+foreach ($program in @('DxUi.ControlTests.exe', 'DxUi.EmbeddedTests.exe')) {
+    Invoke-TestCase "a failed check with a shown window host and a UI Automation provider alive ends the $program run at once, without a dump" {
+        # Require ends the process, so the test's locals are never destroyed; the static failure host's destructor then used to
+        # fail its uninstall while the live host held the module gate, raising a contract failure, a dump and a fail-fast, or a
+        # stall until the suite's 300 s deadline. The self-test fails a check on purpose with both alive.
+        $path = Join-Path $repo ".build/$Platform/$Configuration/$program"
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Test executable is missing: $path" }
+        $evidence = Join-Path (Split-Path -Parent $path) 'FailureEvidence'
+        $before = @(Get-ChildItem -LiteralPath $evidence -Recurse -Filter '*.dmp' -ErrorAction SilentlyContinue).Count
+        $run = Invoke-Bounded @('--failed-check-self-test') 60 $path
+        Assert-True $run.Exited "the run ends instead of stalling (after $([Math]::Round($run.Seconds, 1)) s)"
+        Assert-True ($run.Seconds -lt 30) "the run ends within seconds, not at a deadline ($([Math]::Round($run.Seconds, 1)) s)"
+        Assert-Equal 1 $run.Exit "a failed check exits with 1, the code test.ps1 reports as a failed suite: $($run.Output -join ' | ')"
+        Assert-True (@(Get-Lines $run 'fails this check on purpose').Count -ge 1) "the message reaches the output: $($run.Output -join ' | ')"
+        Assert-True (@(Get-Lines $run 'FailedCheckSelfTest').Count -ge 1) "the test is named: $($run.Output -join ' | ')"
+        Assert-Equal 0 (Get-Lines $run 'returned instead of ending').Count 'the failed check does not return'
+        $after = @(Get-ChildItem -LiteralPath $evidence -Recurse -Filter '*.dmp' -ErrorAction SilentlyContinue).Count
+        Assert-Equal $before $after 'no dump is written'
+    }
+}
 Invoke-TestCase 'test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines' {
     # test.ps1 redirects the executable's streams into a log and reports a failing suite through Get-SuiteFailureReport: the
     # exit code, the TIMEOUT line and the last lines of that log. This produces the log the way test.ps1 does.

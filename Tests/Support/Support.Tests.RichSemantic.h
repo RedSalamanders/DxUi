@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.MarkdownInlines.h"
+#include "Support.Tests.FailureReports.h"
 #include <DxUi/RichSemantic.h>
 #include <DxUi/RichTextCommands.h>
 #include <array>
@@ -31,7 +32,7 @@ inline void Check(bool condition, const char* message)
     if (! condition)
     {
         std::cerr << "FAIL rich semantic: " << message << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 template <typename F> void Run(F&& operation)
@@ -43,7 +44,7 @@ template <typename F> void Run(F&& operation)
     catch (const std::exception& error)
     {
         std::cerr << "FAIL rich semantic unexpected exception: " << error.what() << '\n';
-        std::exit(1);
+        DxUiTestFailureReports::EndRunAfterFailedCheck();
     }
 }
 template <typename Exception, typename F> void Reject(F&& operation, const char* message)
