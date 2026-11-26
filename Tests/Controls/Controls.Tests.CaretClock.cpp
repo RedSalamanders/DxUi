@@ -463,6 +463,21 @@ void PumpCaretFor(uint64_t durationMs)
         static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, static_cast<DWORD>(end - now), QS_ALLINPUT, MWMO_INPUTAVAILABLE));
     }
 }
+
+// Pumps this thread's messages until `reached` holds, with no wall-time bound of its own: how long a busy machine takes to
+// reach a condition is not what is under test, so a condition that never comes ends the run at the test watchdog.
+template <class Condition> void PumpCaretUntil(Condition&& reached)
+{
+    while (! reached())
+    {
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+            static_cast<void>(DispatchQueuedMessageForTest(message));
+        if (reached())
+            return;
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 50u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+}
 } // namespace
 
 // W3.2 review F2: a host hidden only through an ancestor (a hidden parent, the parent's redraw block) gets no message when
@@ -495,6 +510,8 @@ void TestCaretClockRestartsWhenAnAncestorShowsAgain()
         SizeChildren(*root);
         host.SetRoot(std::move(root));
         ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        // The real-time lengths below (a settle, a hide of 300 ms or 1,500 ms against the 600 ms caret timeout and the host's
+        // one-second look at an ancestor) are the scenario itself, not a bound on how fast the machine must be.
         PumpCaretFor(200u);
         host.SetFocusControl(field, false);
         PumpCaretFor(150u);
@@ -510,13 +527,14 @@ void TestCaretClockRestartsWhenAnAncestorShowsAgain()
             PumpCaretFor(hide == Hide::ParentHiddenShort ? 300u : 1'500u);
             ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
         }
-        // The ancestor's show reaches the host at its next look (at most a second), then the restarted caret blinks until
-        // its 600 ms timeout.
+        // The ancestor's show reaches the host at its next look, then the restarted caret blinks until its 600 ms timeout. Both
+        // reads wait on their condition, bounded only by the test watchdog.
         const WorkCounterScope shown;
-        PumpCaretFor(2'500u);
+        PumpCaretUntil([&shown] { return shown.Delta().frame.tickCalls >= 4u; });
         const uint64_t ticks = shown.Delta().frame.tickCalls;
         std::cout << "    caret after the ancestor is shown again (" << static_cast<int>(hide) << "): " << ticks << " Tick calls\n";
         Require(ticks >= 4u, "W3.2: a caret whose host was hidden through an ancestor restarts its blink when the ancestor shows again");
+        PumpCaretUntil([&host] { return host.DebugIsCaretClockVisibleForTest() && WakeIsNone(host); });
         Require(host.DebugIsCaretClockVisibleForTest() && WakeIsNone(host), "and times out again, shown, with nothing armed");
         host.SetFocusControl(nullptr, false);
         SetParent(window.Hwnd(), nullptr);
