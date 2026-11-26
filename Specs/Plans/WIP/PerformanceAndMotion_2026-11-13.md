@@ -369,7 +369,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     `G8` per input.
   - **Needs**: nothing. **Size**: M.
 
-- [ ] **W0.9 Presentation-mode comparison.**
+- [x] **W0.9 Presentation-mode comparison.**
   - **Why**: composition mode renders to a premultiplied target cleared to transparent, HWND mode to an opaque target
     cleared to the window background; `DXGI_SCALING_STRETCH` at `DxUi.WindowHost.cpp:4446` is shared by both modes and is required only
     for composition. What a consumer relying on the default would see change is unrecorded.

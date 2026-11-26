@@ -440,5 +440,26 @@ refresh rates, power plan and a host-idle observation), changes nothing on the m
 without `-Replace`, and regenerates the fixture directory's README. Timing fields stay "not measured" unless
 `-TimingReceipt` names a hardware calibration or comparison from `performance-timing.ps1`.
 
+**Presentation-mode comparison (`W0.9`).** `FX5` (its window form: `ComplexUiScene::BuildRoot` under the host's own `ControlHost`, the
+definition still embedded-only) and `FX1`'s multiline page, read as the text-heavy page, run on a `WindowHost` in `HwndSwapChain` and in
+`CompositionSwapChain`, on WARP and on the default hardware adapter. `DxUi.ControlTests.exe --presentation-modes <out.json> <FX5|FX1>
+Warp|Hardware hwnd-first|composition-first <timing frames> <judged 0|1>` runs one case in one process (both modes, each on a fresh thread
+through `OpenWindowFixtureSession`, the one `WindowInstance` the fixture runners use, in a non-activating off-screen window), and
+`performance-presentation.ps1` runs every case in both orders, adds provenance and writes
+`Measurements/PerformanceAndMotion_2026-11-13/W0.9/presentation-mode.json` (checked by `Tools/PresentationModes.psm1`, tested by
+`Tools/tests/Test-PresentationModes.ps1`). Pixels come from the presented image (`Support.Tests.PresentedWindowCapture.h`): the alpha every pixel
+presents is recovered exactly from the window read over a black and over a white backdrop, and the capture is calibrated each run against the
+back buffer. Counters and pixels decide; frame time and input to present are recorded and marked "not judged, machine busy" unless the
+script runs with `-Judged`, which takes at least 1,000 frames per mode and only when the idle preflight of the W0.2 harness admits the host.
+The script never runs `performance-timing.ps1`, never switches the power plan and shows nothing that takes focus. A monitor move that changes
+DPI and a remote session cannot be driven from the test program: the receipt lists them as not run with the manual steps, and its DPI case is
+the host's `WM_DPICHANGED` seam, labelled a simulation.
+
+```powershell
+./performance-presentation.ps1                                   # the receipt: both adapters, both fixtures, both orders (timing not judged)
+./performance-presentation.ps1 -Adapter Hardware -Judged -TimingFrames 2000 -OutputRoot Measurements/PerformanceAndMotion_2026-11-13/W0.9/judged -Replace   # a quiet machine
+./test.ps1 -Suites WindowHost -Tests TestPresentationModeComparisonOnWarp,TestPresentationModeComparisonOnHardware
+```
+
 Generated output is retained per invocation under `.build/evidence/test-runs/<id>/payload`. Read the
 [retention contract](../Specs/Testing/Testing_RunEvidence.md) for failed/interrupted runs and verification.

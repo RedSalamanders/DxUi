@@ -4,6 +4,7 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls.Tests.PointerPacing.h"
+#include "Controls.Tests.PresentationModes.h"
 #include "Controls.Tests.PresentedFrame.h"
 #include "Controls.Tests.TextInputSyncOnce.h"
 #include "Controls/DxUi.Typography.h"
@@ -7849,6 +7850,11 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostDeviceCreationPreservesHandledNativeExceptions);
     DXUI_RUN_TEST(TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnWarp);
     DXUI_RUN_TEST(TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnHardware);
+    DXUI_RUN_TEST(TestPresentationModeAlphaRecoveryIsExact);
+    DXUI_RUN_TEST(TestPresentationModeImageComparisonClassifiesPixels);
+    DXUI_RUN_TEST(TestPresentationModeScopeAnchorsResolve);
+    DXUI_RUN_TEST(TestPresentationModeComparisonOnWarp);
+    DXUI_RUN_TEST(TestPresentationModeComparisonOnHardware);
     DXUI_RUN_TEST(TestFramePacingWaitableSemanticsOnWarp);
     DXUI_RUN_TEST(TestFramePacingIdleArmsNothing);
     DXUI_RUN_TEST(TestFramePacingHideDuringArmedWaitWakesNothing);

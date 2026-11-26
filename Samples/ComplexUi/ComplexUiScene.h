@@ -80,6 +80,14 @@ struct ComplexUiScene
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
         view.Controls().SetTheme(theme);
+        view.Controls().SetRoot(BuildRoot());
+        Update(0);
+        return S_OK;
+    }
+    // The scene's control tree, without a host: the embedded view above sets it as its root, and a window host that runs the
+    // same scene (performance fixture FX5 on the WindowHost) sets it on its own ControlHost. The scene owns the model.
+    std::unique_ptr<DxUi::Panel> BuildRoot()
+    {
         auto root = std::make_unique<DxUi::Panel>();
         for (size_t i = 0; i < sliders.size(); ++i)
         {
@@ -102,14 +110,12 @@ struct ComplexUiScene
         grid = root->AddChild<DxUi::Grid>();
         grid->SetBounds(D2D1::RectF(392, 360, 1272, 712));
         grid->SetModel(&model);
-        view.Controls().SetRoot(std::move(root));
-
         for (size_t i = 0; i < sliders.size(); ++i)
             sliders[i]->SetOnChange([this, i](DxUi::SliderChange change) { progress[i]->SetValue(change.value); });
-        Update(0);
-        return S_OK;
+        return root;
     }
-    void Update(size_t frame)
+    // The per-frame change without the embedded view's invalidation (a window host invalidates through the controls).
+    void Apply(size_t frame)
     {
         for (size_t i = 0; i < sliders.size(); ++i)
         {
@@ -118,6 +124,10 @@ struct ComplexUiScene
             progress[i]->SetValue(value);
         }
         grid->EnsureRowVisible((frame * (model.multilineGrid ? 1u : 7u)) % model.names.size());
+    }
+    void Update(size_t frame)
+    {
+        Apply(frame);
         view.MarkDirty();
     }
 };

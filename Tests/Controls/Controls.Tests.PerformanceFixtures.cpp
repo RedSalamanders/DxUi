@@ -66,10 +66,13 @@ public:
         definition_ = &definition;
         scenario_   = definition.create();
     }
-    // forceWarp false only for the hardware attribution's present pass (RunWindowPresentAttributionCommand).
-    void Create(const Variant& variant, bool forceWarp = true)
+    // forceWarp false only for the hardware attribution's present pass (RunWindowPresentAttributionCommand) and the
+    // presentation-mode comparison (W0.9), which also names the swap chain's mode.
+    void Create(const Variant& variant,
+                bool forceWarp                                      = true,
+                DxUi::WindowHost::PresentationMode presentationMode = DxUi::WindowHost::PresentationMode::HwndSwapChain)
     {
-        window_.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, forceWarp);
+        window_.emplace(presentationMode, forceWarp);
         window_->SetMessageObserver(&WindowInstance::ObserveMessage, this);
         // The host's animation clock is the fixture clock from the start: a delay scheduled before the first tick (a tooltip's
         // show delay) is measured on it, never on GetTickCount64.
@@ -617,6 +620,56 @@ void TestFrameScheduleGatesOnWindowFixtures()
 PerformanceFixtures::RunRecord RunWindowFixture(const PerformanceFixtures::Definition& definition, const PerformanceFixtures::Variant& variant)
 {
     return RunWindow(definition, variant);
+}
+
+namespace
+{
+// W0.9: the one WindowInstance (the one model of a window fixture) behind a public handle, in a chosen swap-chain mode and on
+// WARP or the default hardware adapter. The comparison reads and drives the host and its window through it.
+class WindowFixtureSessionImpl final : public WindowFixtureSession
+{
+public:
+    WindowFixtureSessionImpl(const Definition& definition, const Variant& variant, bool forceWarp, DxUi::WindowHost::PresentationMode mode)
+    {
+        instance_.Instantiate(definition);
+        instance_.Create(variant, forceWarp, mode);
+    }
+    WindowFixtureSessionImpl(const WindowFixtureSessionImpl&)            = delete;
+    WindowFixtureSessionImpl& operator=(const WindowFixtureSessionImpl&) = delete;
+    WindowFixtureSessionImpl(WindowFixtureSessionImpl&&)                 = delete;
+    WindowFixtureSessionImpl& operator=(WindowFixtureSessionImpl&&)      = delete;
+    [[nodiscard]] DxUi::WindowHost& Host() noexcept override
+    {
+        return instance_.Host();
+    }
+    [[nodiscard]] HWND Hwnd() const noexcept override
+    {
+        return instance_.Hwnd();
+    }
+    void Step(size_t phase, size_t step) override
+    {
+        instance_.Step(phase, step);
+    }
+    void Frame() override
+    {
+        instance_.Frame();
+    }
+    void Resize(UINT width, UINT height, float dpi) override
+    {
+        instance_.Resize(width, height, dpi);
+    }
+
+private:
+    WindowInstance instance_;
+};
+} // namespace
+
+std::unique_ptr<WindowFixtureSession> OpenWindowFixtureSession(const PerformanceFixtures::Definition& definition,
+                                                               const PerformanceFixtures::Variant& variant,
+                                                               bool forceWarp,
+                                                               DxUi::WindowHost::PresentationMode mode)
+{
+    return std::make_unique<WindowFixtureSessionImpl>(definition, variant, forceWarp, mode);
 }
 
 // W2.8's gate on the window host: FX12 (default and typography-120) forces no full visual re-preparation and creates,

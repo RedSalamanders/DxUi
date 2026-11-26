@@ -1,6 +1,9 @@
 #pragma once
 // FX5 ComplexUi: the existing 83-control scene, clean and dirty frames (plan W0.4). The scene is Samples/ComplexUi/ComplexUiScene.h,
-// shared verbatim with the canonical benchmark, so it owns its EmbeddedHost: this fixture runs on the embedded host only.
+// shared verbatim with the canonical benchmark, so on the embedded host it owns its EmbeddedHost. On the window host (W0.9: the
+// presentation-mode comparison runs FX5 in both swap-chain modes) the same scene supplies its control tree to the host's own
+// ControlHost and changes the same values. The definition still declares the embedded host only: no window receipt, determinism
+// gate or timing run of FX5 exists, and the comparison (Tests/Controls/Controls.Tests.PresentationModes.cpp) is the one user.
 #include "ComplexUiScene.h"
 #include "Embedded.Tests.PerformanceFixture.h"
 
@@ -39,16 +42,28 @@ public:
         result = scene_.Initialize(device);
         return SUCCEEDED(result) ? &scene_.view : nullptr;
     }
-    HRESULT Build(Context&) override
+    HRESULT Build(Context& context) override
     {
-        return S_OK; // ComplexUiScene::Initialize built the tree and applied its reduced-motion theme.
+        // Embedded: ComplexUiScene::Initialize built the tree and applied its reduced-motion theme. Window: the runner's host
+        // has the fixture theme (dark, reduced motion, as the scene sets) and the scene supplies the same tree.
+        if (context.host == Host::Window)
+        {
+            context.controls.SetRoot(scene_.BuildRoot());
+            scene_.Apply(0u);
+        }
+        return S_OK;
     }
     void Step(Context& context, size_t phase, size_t step) override
     {
-        if (phase == 0u)
-            scene_.Update(step);
-        else if (phase == 2u)
-            scene_.Update(kWarmSteps + step);
+        // The window host invalidates through the controls' setters; only the embedded view needs MarkDirty.
+        if (phase == 0u || phase == 2u)
+        {
+            const size_t frame = phase == 0u ? step : kWarmSteps + step;
+            if (context.host == Host::Embedded)
+                scene_.Update(frame);
+            else
+                scene_.Apply(frame);
+        }
         else if (phase == kHover)
         {
             // The toggle of card 0 or card 1 (each card holds its label, toggle, slider and progress bar in that order).
@@ -69,11 +84,13 @@ private:
 };
 
 inline constexpr Definition kDefinition{
-    .id         = "FX5",
-    .title      = "ComplexUi: the existing 83-control scene, clean and dirty frames",
-    .scenario   = "Samples/ComplexUi/ComplexUiScene.h: 16 cards (label, toggle, slider, progress bar), a Tree and a Grid over a 1,000-row model, "
-                  "absolute layout, offscreen EmbeddedHost, reduced motion; 20 warm-up frames, 40 clean frames, 40 dirty frames, 20 hover frames.",
-    .budgets    = kBudgets,
+    .id       = "FX5",
+    .title    = "ComplexUi: the existing 83-control scene, clean and dirty frames",
+    .scenario = "Samples/ComplexUi/ComplexUiScene.h: 16 cards (label, toggle, slider, progress bar), a Tree and a Grid over a 1,000-row model, "
+                "absolute layout, offscreen EmbeddedHost, reduced motion; 20 warm-up frames, 40 clean frames, 40 dirty frames, 20 hover frames.",
+    .budgets  = kBudgets,
+    // Embedded only for the receipts, the determinism gate and the timing harness; the window form below exists for the
+    // presentation-mode comparison (WindowFixtureSession), which names the definition itself and runs no window receipt of FX5.
     .hosts      = kEmbedded,
     .variants   = kVariants,
     .phases     = kPhases,

@@ -3,6 +3,7 @@
 #include "Controls.Tests.FrameSchedule.h"
 #include "Controls.Tests.PerformanceFixtureColdStart.h"
 #include "Controls.Tests.PerformanceFixtures.h"
+#include "Controls.Tests.PresentationModes.h"
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
 #include "Support/LayoutScopes.Tests.Hooks.h"
@@ -168,6 +169,9 @@ int wmain(int argc, wchar_t** argv)
     // The window-host present pass of the hardware attribution method (performance-attribution.ps1, plan W0.7).
     if (argc >= 2 && std::wstring_view(argv[1]) == L"--present-attribution")
         return RunWindowPresentAttributionCommand(argc, argv);
+    // The presentation-mode comparison of one fixture on one adapter in both swap-chain modes (performance-presentation.ps1, W0.9).
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--presentation-modes")
+        return RunPresentationModeCommand(argc, argv);
     // FX13's receipt-only cold start: fresh child processes timed to their first presented frame.
     if (const int coldStart = RunFx13ColdStartChild(argc, argv); coldStart >= 0)
         return coldStart;

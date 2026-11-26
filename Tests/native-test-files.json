@@ -53,6 +53,8 @@
   "Tests/Controls/Controls.Tests.PointerPacing.cpp",
   "Tests/Controls/Controls.Tests.PointerPacing.h",
   "Tests/Controls/Controls.Tests.PreparedTreeAccessibilityEvents.h",
+  "Tests/Controls/Controls.Tests.PresentationModes.cpp",
+  "Tests/Controls/Controls.Tests.PresentationModes.h",
   "Tests/Controls/Controls.Tests.PresentedFrame.h",
   "Tests/Controls/Controls.Tests.RetainedTextLayouts.cpp",
   "Tests/Controls/Controls.Tests.RetainedTextLayouts.h",
