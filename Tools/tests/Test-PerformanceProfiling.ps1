@@ -7,6 +7,10 @@ $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $modulePath = Join-Path $repository 'Tools/PerformanceProfiling.psm1'
 Import-Module $modulePath -Force
 $shellPath = (Get-Process -Id $PID).Path
+# A hang guard for a fixture child that exits or answers on its own condition (its start, its first output, the release the
+# test writes): how long a busy machine takes to start a shell is not what is under test, so the bound is the 120 s that
+# Invoke-OwnedProfilingProcess -TimeoutSeconds allows (a tenth of the tooling runner's 1200 s limit), not a few seconds.
+$fixtureWaitSeconds = 120
 
 function Get-TestPngCrc([byte[]] $Bytes) {
     # Independent small-fixture reference, separate from the production BCL implementation.
@@ -684,7 +688,7 @@ Invoke-FixtureCase 'direct child exit with inherited pipe still has bounded drai
     Set-FixtureFile $root 'holder.ps1' @'
 $clock=[Diagnostics.Stopwatch]::StartNew()
 $release=Join-Path $PSScriptRoot 'release-holder'
-while (-not (Test-Path -LiteralPath $release) -and $clock.Elapsed.TotalSeconds -lt 5) { Start-Sleep -Milliseconds 20 }
+while (-not (Test-Path -LiteralPath $release) -and $clock.Elapsed.TotalSeconds -lt 300) { Start-Sleep -Milliseconds 20 } # failsafe only: the test writes the release when its parent has returned
 if (-not (Test-Path -LiteralPath $release)) { exit 1 }
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'holder-released'),'release observed')
 '@
@@ -704,7 +708,7 @@ $child.Dispose()
 '@
     try {
         $clock=[Diagnostics.Stopwatch]::StartNew()
-        $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root,'3200') -WorkingDirectory $root -TimeoutSeconds 10 -DrainTimeoutSeconds 0.2
+        $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root,'3200') -WorkingDirectory $root -TimeoutSeconds $fixtureWaitSeconds -DrainTimeoutSeconds 0.2
         Assert-True (-not $child.timedOut -and $child.exitCode -eq 0) 'direct child ended normally'
         Assert-True (-not [string]::IsNullOrEmpty($child.drainError)) 'retained descendant pipe declared incomplete'
         Assert-True $child.stdout.Contains('emitted stdout prefix') 'stdout prefix retained before pipe EOF'
@@ -722,7 +726,7 @@ $child.Dispose()
             Assert-True (-not $holder.HasExited) 'helper returned while the inherited-pipe holder remains alive'
             # An EOF-wait implementation cannot return while this gate keeps the exact holder alive.
             [IO.File]::WriteAllText((Join-Path $root 'release-holder'),'release')
-            Assert-True $holder.WaitForExit(5000) 'holder exits cooperatively after explicit release'
+            Assert-True $holder.WaitForExit($fixtureWaitSeconds * 1000) 'holder exits cooperatively after explicit release'
             Assert-Equal 0 $holder.ExitCode 'holder release succeeds rather than reaching its failsafe'
             Assert-True (Test-Path -LiteralPath (Join-Path $root 'holder-released')) 'holder acknowledges the explicit release'
         } finally { $holder.Dispose() }
@@ -781,7 +785,7 @@ Start-Sleep -Seconds 60
         Assert-True (-not [string]::IsNullOrEmpty($child.drainError)) 'descendant-held pipe is an explicit bounded failure'
         Assert-True ($child.drainTimeoutSeconds -eq 0.2 -and $child.observedDrainElapsedMs -ge 0 -and $child.observedDrainElapsedMs -lt 3000) 'the original bounded post-exit drain is preserved'
         [IO.File]::WriteAllText((Join-Path $root 'release-holder'),'release')
-        Assert-True $holder.WaitForExit(5000) 'the exact surviving holder exits cooperatively'
+        Assert-True $holder.WaitForExit($fixtureWaitSeconds * 1000) 'the exact surviving holder exits cooperatively'
         Assert-Equal 0 $holder.ExitCode 'holder release succeeds rather than reaching its failsafe'
     } finally {
         if ($holder) {
@@ -792,7 +796,7 @@ Start-Sleep -Seconds 60
 Invoke-FixtureCase 'incremental pipe storage retains a bounded prefix and declares overflow' {
     param($root)
     Set-FixtureFile $root 'output.ps1' "[Console]::Out.Write(('A' * 10000)); [Console]::Out.Flush()"
-    $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'output.ps1')) -WorkingDirectory $root -TimeoutSeconds 5 -PipeCharacterLimit 1024
+    $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'output.ps1')) -WorkingDirectory $root -TimeoutSeconds $fixtureWaitSeconds -PipeCharacterLimit 1024
     Assert-Equal 1024 $child.stdout.Length 'bounded prefix length'
     Assert-True $child.stdoutTruncated 'overflow explicit'
     Assert-True $child.drainError.Contains('budget exceeded') 'overflow is non-success diagnostic metadata'
