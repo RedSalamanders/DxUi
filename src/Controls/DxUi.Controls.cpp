@@ -13,6 +13,8 @@
 #include <utility>
 
 #include "Support/Diagnostics.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
+#include "Support/MeasureCache.Tests.Hooks.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 
 namespace DxUi
@@ -1707,6 +1709,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         {
             // The next explicit preparation applies the new page bounds; paint never performs layout.
             _childBoundsPending = true;
+            LayoutScopeAccess::MarkPending(*this);
             if (auto* const host = GetHost())
                 host->_pendingPageLayout = true;
         }
@@ -2296,7 +2299,10 @@ void PageHost::PropagateHost(ControlHost* host) noexcept
     }
 
     if (host && _childBoundsPending)
+    {
         host->_pendingPageLayout = true;
+        LayoutScopeAccess::MarkPending(*this);
+    }
 
     Control* const current                    = _currentPage.get();
     Control* const outgoing                   = _outgoingPage.get();
@@ -2459,6 +2465,8 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     const bool prepareAllVisual  = _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
     _contentPreparationFailure   = S_OK;
+    // W6.3: queued measure invalidations reach the ancestors they concern, or stop where a size held, before the pass.
+    LayoutScopeAccess::Resolve(*this);
     if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent && ! _pendingVisualPreparation &&
         ! prepareAllVisual)
         return true;
@@ -2479,12 +2487,16 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     Control* const root     = _root.get();
     const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
     const auto rootCurrent  = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
-    const auto prepare      = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
+    // A resource or typography broadcast prepares every visible control: the walk enters every child.
+    const bool wholeTree = prepareAllContent || prepareAllVisual || ! Detail::LayoutScopePruningEnabled();
+    const auto prepare   = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
     {
+        ++Detail::Work().frame.treeVisitsPreparation;
         const auto lifetime = GetControlLifetimeToken(control);
         const bool visible  = ancestorsVisible && control.IsVisible();
         if (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending)
         {
+            ++Detail::Work().layout.intrinsicArrangements;
             preparedIntrinsic               = true;
             control._intrinsicLayoutPending = false;
             const HRESULT hr                = control.PrepareIntrinsicLayout({*this});
@@ -2514,7 +2526,9 @@ bool ControlHost::PreparePendingPageLayout() noexcept
                 }
             }
         }
-        if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_childBoundsPending)
+        // The paint kind (W4.10) tells a PageHost apart: no type test per visit (W6.3).
+        if (auto* const page = PaintExtentAccess::Kind(control) == PaintKind::PageHost ? static_cast<PageHost*>(&control) : nullptr;
+            page && page->_childBoundsPending)
         {
             page->_childBoundsPending = false;
             page->SyncChildBounds();
@@ -2588,6 +2602,12 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             Control* const child = control.GetLogicalChild(index);
             if (lifetime.expired() || ! rootCurrent())
                 return;
+            // W6.3: a child with no work marked in or below it is not entered (every child under a whole-tree broadcast).
+            if (child && ! wholeTree && ! LayoutScopeAccess::IsPending(*child))
+            {
+                ++index;
+                continue;
+            }
             const auto childLifetime = child ? GetControlLifetimeToken(*child) : std::weak_ptr<int>{};
             if (child)
                 self(self, *child, visible);
@@ -2608,12 +2628,28 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             intrinsicPending   = true;
         }
         // Transition pages still paint even though only the current page belongs to logical navigation.
-        if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
+        auto* const pageHost = PaintExtentAccess::Kind(control) == PaintKind::PageHost ? static_cast<PageHost*>(&control) : nullptr;
+        if (pageHost && pageHost->_outgoingPage && pageHost->_outgoingPage != pageHost->_currentPage &&
+            (wholeTree || LayoutScopeAccess::IsPending(*pageHost->_outgoingPage)))
         {
-            self(self, *page->_outgoingPage, visible);
+            self(self, *pageHost->_outgoingPage, visible);
         }
         if (lifetime.expired() || ! rootCurrent())
             return;
+        // W6.3: the mark stays while the control or one below it still holds work (hidden, unfinished, or added during the
+        // pass); a pass that ended early above keeps it as it was.
+        bool below = index < remaining || (pageHost && pageHost->_childBoundsPending) || (control._intrinsicLayoutEnabled && control._intrinsicLayoutPending) ||
+                     (control._contentPreparationEnabled && control._contentPreparationState == Control::ContentPreparationState::Pending) ||
+                     (control._visualPreparationEnabled && control._visualPreparationPending);
+        for (size_t child = 0u, children = control.GetLogicalChildCount(); child < children && ! below; ++child)
+            if (const Control* const logical = control.GetLogicalChild(child))
+                below = LayoutScopeAccess::IsPending(*logical);
+        if (! below && pageHost && pageHost->_outgoingPage)
+            below = LayoutScopeAccess::IsPending(*pageHost->_outgoingPage);
+        if (lifetime.expired() || ! rootCurrent())
+            return;
+        if (! below)
+            LayoutScopeAccess::ClearPending(control);
         intrinsicPending = intrinsicPending || (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending);
         contentPending =
             contentPending || (visible && control._contentPreparationEnabled && control._contentPreparationState == Control::ContentPreparationState::Pending);
@@ -2694,8 +2730,101 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     }
     if (layoutComplete && preparedIntrinsic)
         _contentGeometryChanged = true; // Publish deferred geometry only after the frame completes.
-    return layoutComplete && ! _pendingContentPreparation;
+    const bool prepared = layoutComplete && ! _pendingContentPreparation;
+#if defined(_DEBUG)
+    if (prepared && g_hostPreparationDepth == 1u && root && rootCurrent() && Detail::LayoutScopeVerificationEnabled())
+        VerifyLayoutScopesForTest(*root);
+#endif
+    return prepared;
 }
+
+#if defined(_DEBUG)
+// W6.3 verification (Detail::SetLayoutScopeVerificationForTest): the pass just prepared only the marked subtrees. Lay the
+// whole tree out again from empty measure caches and compare every control's bounds. The check is invisible to the code
+// under test: the work counters, the measure caches, the probe observer and the host's geometry flag are restored.
+void ControlHost::VerifyLayoutScopesForTest(Control& root) noexcept
+{
+    try
+    {
+        // Holds a moved-out cache: moved, never copied. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
+        struct Saved
+        {
+            Control* control = nullptr;
+            std::weak_ptr<int> lifetime;
+            D2D1_RECT_F bounds{};
+            decltype(Control::_measureCache) cache;
+            uint64_t* measureCount = nullptr;
+            uint64_t measures      = 0u;
+        };
+#pragma warning(pop)
+        std::vector<Saved> saved;
+        const auto collect = [&](const auto& self, Control& control) -> void
+        {
+            uint64_t* const measureCount = LayoutScopeAccess::DebugMeasureCount(control);
+            saved.push_back({&control,
+                             GetControlLifetimeToken(control),
+                             control.GetBounds(),
+                             std::move(control._measureCache),
+                             measureCount,
+                             measureCount ? *measureCount : 0u});
+            if (control._intrinsicLayoutEnabled)
+            {
+                control._intrinsicLayoutPending = true;
+                LayoutScopeAccess::MarkPending(control);
+            }
+            for (size_t index = 0u; index < control.GetLogicalChildCount(); ++index)
+                if (Control* const child = control.GetLogicalChild(index))
+                    self(self, *child);
+            if (PaintExtentAccess::Kind(control) == PaintKind::PageHost)
+                if (auto& page = static_cast<PageHost&>(control); page._outgoingPage && page._outgoingPage != page._currentPage)
+                    self(self, *page._outgoingPage);
+        };
+        collect(collect, root);
+        const Detail::WorkCounters work = Detail::Work();
+        void* observerContext           = nullptr;
+        const auto observer             = Detail::SetMeasureProbeObserverForTest(nullptr, nullptr, &observerContext);
+        const bool geometryChanged      = _contentGeometryChanged;
+        _pendingIntrinsicLayout         = true;
+        static_cast<void>(PreparePendingPageLayout());
+        static_cast<void>(Detail::SetMeasureProbeObserverForTest(observer, observerContext, nullptr));
+        _contentGeometryChanged = geometryChanged;
+        uint64_t mismatches     = 0u;
+        for (Saved& entry : saved)
+        {
+            if (entry.lifetime.expired())
+                continue;
+            const D2D1_RECT_F now = entry.control->GetBounds();
+            if (now.left != entry.bounds.left || now.top != entry.bounds.top || now.right != entry.bounds.right || now.bottom != entry.bounds.bottom)
+            {
+                ++mismatches;
+                Debug::Warning(L"DxUi: layout scope verification: a control's bounds differ from a whole layout ({}, {}, {}, {} against {}, {}, {}, {})",
+                               entry.bounds.left,
+                               entry.bounds.top,
+                               entry.bounds.right,
+                               entry.bounds.bottom,
+                               now.left,
+                               now.top,
+                               now.right,
+                               now.bottom);
+            }
+            entry.control->_measureCache = std::move(entry.cache);
+            if (entry.measureCount)
+                *entry.measureCount = entry.measures;
+        }
+        Detail::Work() = work;
+        Detail::Work().layout.scopeVerifyMismatches += mismatches;
+        // A negative control's intended mismatches stay out of the program's totals.
+        if (! Detail::LayoutCutoffUncheckedForTest())
+            Detail::NoteLayoutScopeVerification(mismatches);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+}
+#endif
 
 void ControlHost::CancelPreparedVisualContent(Control* subtree) noexcept
 {
@@ -2716,6 +2845,7 @@ void ControlHost::CancelPreparedVisualContent(Control* subtree) noexcept
             if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
                 return;
             control._visualPreparationPending = true;
+            LayoutScopeAccess::MarkPending(control);
         }
         const size_t budget = control.GetLogicalChildCount();
         if (lifetime.expired() || ! rootCurrent())
@@ -2763,6 +2893,7 @@ void ControlHost::CancelPreparedContent() noexcept
             if (lifetime.expired() || ! current() || control.GetHost() != this)
                 return;
             control._contentPreparationState = Control::ContentPreparationState::Pending;
+            LayoutScopeAccess::MarkPending(control);
         }
         const auto budget = control.GetLogicalChildCount();
         if (lifetime.expired() || ! current())
@@ -2918,7 +3049,12 @@ void Label::CancelVisualContentPreparation() noexcept
 }
 void Label::OnBoundsChanged() noexcept
 {
-    InvalidateTypographyPreparation();
+    // A move keeps the prepared layout, which is drawn at the bounds' origin (UI_ThemeAndTypography.md: position-only movement
+    // does not rebuild); only a size other than the prepared one prepares again (W6.3).
+    const auto bounds = GetBounds();
+    if (! _typographyLayout || _typographyLayoutSize.width != (std::max)(1.0f, bounds.right - bounds.left) ||
+        _typographyLayoutSize.height != (std::max)(1.0f, bounds.bottom - bounds.top))
+        InvalidateTypographyPreparation();
     Control::OnBoundsChanged();
 }
 void Label::OnFlowDirectionChanged() noexcept

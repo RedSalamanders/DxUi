@@ -47,6 +47,7 @@ inline constexpr size_t kValue = 3u;
 inline constexpr size_t kWheel = 4u;
 inline constexpr size_t kSize  = 5u;
 inline constexpr size_t kWidth = 6u;
+inline constexpr size_t kMove  = 7u;
 inline constexpr std::array kPhases{
     Phase{"warm", 3u, PhaseKind::Warmup, "an unchanged frame, then the pointer moves onto the first and the second hover button"},
     Phase{"full", 4u, PhaseKind::Measured, "ControlHost::Invalidate with nothing changed: a full frame"},
@@ -58,6 +59,8 @@ inline constexpr std::array kPhases{
           "one wheel notch down over the form (form-10k); the dense screen has nothing to scroll, so its frames are unchanged"},
     Phase{"size", 4u, PhaseKind::Measured, "one Label's text grows and shrinks, moving its row (form-layout variants; elsewhere unchanged frames)"},
     Phase{"width", 4u, PhaseKind::Measured, "the form column narrows by 40 DIP and widens back (form-layout variants; elsewhere unchanged frames)"},
+    // W6.3: position-only moves. typography-120 holds 500 typed Labels: its two steps make 1,000 moves.
+    Phase{"move", 2u, PhaseKind::Measured, "every dense-screen Label moves 1 DIP right, then back, its size unchanged (form variants: unchanged frames)"},
 };
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx12.h")};
 
@@ -142,6 +145,16 @@ public:
                     column_->SetBounds(bounds);
                 }
                 break;
+            case kMove:
+                for (DxUi::Label* label : denseLabels_)
+                {
+                    D2D1_RECT_F bounds = label->GetBounds();
+                    const float offset = step % 2u == 0u ? 1.0f : -1.0f;
+                    bounds.left += offset;
+                    bounds.right += offset;
+                    label->SetBounds(bounds);
+                }
+                break;
             default: break;
         }
     }
@@ -194,6 +207,7 @@ private:
                     }
                     if (! valueLabel_)
                         valueLabel_ = label;
+                    denseLabels_.push_back(label);
                     control = label;
                     break;
                 }
@@ -317,6 +331,7 @@ private:
     }
 
     TinyTreeModel tinyTree_;
+    std::vector<DxUi::Label*> denseLabels_;
     DxUi::ScrollPanel* scroll_ = nullptr;
     DxUi::Label* valueLabel_   = nullptr;
     DxUi::Label* sizeLabel_    = nullptr;
@@ -336,7 +351,8 @@ inline constexpr Definition kDefinition{
                   "form-layout-10k and form-layout-10k-uhd (3840x2160, 192 DPI): "
                   "the same rows (200 or 2,000) arranged by the library, a column FlexPanel of 100-row section FlexPanels of row FlexPanels inside the "
                   "ScrollPanel. Reduced motion. Phases: "
-                  "full frames, one hover change, one Label text change, wheel scrolling, a Label that grows and shrinks, a column width change. Per-control "
+                  "full frames, one hover change, one Label text change, wheel scrolling, a Label that grows and shrinks, a column width change, every "
+                  "dense-screen Label moved 1 DIP and back (W6.3). Per-control "
                   "memory is the built sample's tracked live bytes over "
                   "the control count. G5 is a hardware timing verdict: not measured here.",
     .budgets    = kBudgets,

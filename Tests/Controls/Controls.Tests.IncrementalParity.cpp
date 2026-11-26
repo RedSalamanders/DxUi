@@ -7,8 +7,10 @@
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
+#include "Support.Tests.LayoutScopes.h"
 #include "Support.Tests.PaintRegions.h"
 #include "Support.Tests.TextFieldPaint.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 // Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -259,6 +261,51 @@ void TestNativeIncrementalParityPaintRegions()
     const DxUi::Detail::WorkCounters work = scope.Delta();
     std::cout << "  native regions oracle: " << work.frame.paintCulled << " children culled, " << work.frame.inkEscapes << " ink escapes\n";
     Require(work.frame.paintCulled > 0u, "W4.10: the native regions oracle compares frames that culled children");
+}
+
+// W6.3: layout invalidation scopes on the window host. The negative control stops every queued measure invalidation at its
+// control unchecked, as a wrong cutoff would: a Label that grew must then differ from the fresh layout.
+void TestNativeIncrementalParityLayoutScopes()
+{
+    // Debug builds also compare every pruned preparation pass of both scenes with a whole layout.
+    const bool previous  = DxUi::Detail::LayoutScopeVerificationEnabled();
+    const bool verifying = DxUi::Detail::SetLayoutScopeVerificationForTest(true);
+    const auto restore   = wil::scope_exit([previous] { static_cast<void>(DxUi::Detail::SetLayoutScopeVerificationForTest(previous)); });
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(LayoutScopes::LayoutScopesScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    const auto work = scope.Delta();
+    std::cout << "  native layout-scopes verification " << (verifying ? "on" : "not in this build") << ": " << work.layout.scopeVerifyMismatches
+              << " mismatches\n";
+    Require(work.layout.scopeVerifyMismatches == 0u, "W6.3: every pruned pass of the script equals a whole layout");
+    std::cout << "  native layout-scopes: " << work.layout.measureCutoffs << " cutoffs, " << work.frame.treeVisitsPreparation << " preparation visits\n";
+    Require(work.layout.measureCutoffs > 0u, "W6.3: the layout-scopes script compares frames after a cutoff");
+}
+
+void TestNativeIncrementalParityLayoutScopesDetectsAWrongCutoff()
+{
+    constexpr std::array<uint64_t, 1u> seed{0x06030F01u};
+    const ParityScript<NativeParityScene> script{"wrong-cutoff",
+                                                 seed,
+                                                 1u,
+                                                 &LayoutScopes::BuildLayoutScopesScene<NativeParityScene>,
+                                                 [](NativeParityScene& scene, Rng&, size_t)
+    {
+        static_cast<Label*>(scene.slots[LayoutScopes::kLabelFirst + 1u])
+            ->SetText(L"Row 1 with a caption long enough to push the button and the field to the trailing side");
+    }};
+    Require(RunParityScriptOnce(script, seed[0], MakeNativeScene).empty(), "W6.3: without the injection the growing Label renders identically");
+    // The verification would lay the stale bound out again before the oracle reads it: off for the injected run.
+    const bool verifying = DxUi::Detail::LayoutScopeVerificationEnabled();
+    static_cast<void>(DxUi::Detail::SetLayoutScopeVerificationForTest(false));
+    DxUi::Detail::SetLayoutCutoffUncheckedForTest(true);
+    const auto restore           = wil::scope_exit([verifying]
+    {
+        DxUi::Detail::SetLayoutCutoffUncheckedForTest(false);
+        static_cast<void>(DxUi::Detail::SetLayoutScopeVerificationForTest(verifying));
+    });
+    const std::string difference = RunParityScriptOnce(script, seed[0], MakeNativeScene);
+    std::cout << "  native wrong-cutoff negative control: " << difference << '\n';
+    Require(difference.starts_with("step 1 ") && ! difference.empty(), "W6.3: an unchecked cutoff leaves a stale bound the oracle sees");
 }
 
 // W4.10 round 3 (X1): a PageHost's pages follow the culling rules of a panel's children on the window host, whose whole frames
@@ -548,5 +595,7 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityTextField);
     DXUI_RUN_TEST(TestNativeIncrementalParityPaintRegions);
     DXUI_RUN_TEST(TestNativeIncrementalParityPageHostCulling);
+    DXUI_RUN_TEST(TestNativeIncrementalParityLayoutScopes);
+    DXUI_RUN_TEST(TestNativeIncrementalParityLayoutScopesDetectsAWrongCutoff);
     DXUI_RUN_TEST(TestNativeParityPointerInputCompletesInItsStep);
 }

@@ -70,6 +70,7 @@
     X(frame, tooltipTargetValidations)      /* Wakes that resolved the supplemental tooltip's target again: marked, or at the tooltip's own deadline. */       \
     X(frame, treeVisitsHitTest)             /* Controls a hit test examined: the root and each child a container offered to it. */                             \
     X(frame, treeVisitsPaint)               /* Controls a paint walk examined, visible or not. */                                                              \
+    X(frame, treeVisitsPreparation)         /* Controls a host preparation pass (PreparePendingPageLayout) entered, visible or not (W6.3). */                  \
     X(frame, treeVisitsStatistics)          /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                     \
     X(frame, treeVisitsTick)                /* Controls an animation tick walk examined, visible or not. */
 
@@ -212,12 +213,15 @@
 // Intrinsic layout: Control::Measure and its measure cache.
 #define DXUI_WORK_COUNTERS_LAYOUT(X)                                                                                                                           \
     X(layout, arrangedChildren)             /* Child SetBounds calls an intrinsic owner's arrangement made (FlexPanel, FormPanel, FormField). */               \
+    X(layout, intrinsicArrangements)        /* PrepareIntrinsicLayout calls a host preparation pass made: one arrangement of an intrinsic owner (W6.3). */     \
     X(layout, measureCacheEvictions)        /* Measure-cache misses that displaced a slot valid for the control's current revision and context. */             \
     X(layout, measureCacheHits)             /* Control::Measure calls answered from the control's measure cache, MeasureOverride not run. */                   \
     X(layout, measureCacheMisses)           /* Control::Measure calls with valid input that found no cached result and ran MeasureOverride. */                 \
     X(layout, measureCacheVerifyMismatches) /* Debug verification: a cache hit whose re-run MeasureOverride returned a different result. */                    \
-    X(layout, measureInvalidations)         /* Control::InvalidateMeasure calls: one per control whose measured size may have changed. */                      \
-    X(layout, measureOverrideExecutions)    /* MeasureOverride calls Control::Measure made for a miss (not verification re-runs). */
+    X(layout, measureCutoffs)            /* Deferred measure invalidations stopped at a control whose result held under every recorded constraint (W6.3). */   \
+    X(layout, measureInvalidations)      /* Control::InvalidateMeasure calls: one per control whose measured size may have changed. */                         \
+    X(layout, measureOverrideExecutions) /* MeasureOverride calls Control::Measure made for a miss (not verification re-runs). */                              \
+    X(layout, scopeVerifyMismatches)     /* Debug verification: controls whose bounds after a pruned pass differ from a whole layout (W6.3). */
 
 // Every counter of every group except the resource kinds.
 #define DXUI_WORK_COUNTER_FIELDS(X)                                                                                                                            \

@@ -1780,7 +1780,10 @@ void ControlHost::SetTheme(const ThemePalette& palette) noexcept
         const auto mark = [](const auto& self, Control& control) noexcept -> void
         {
             if (control._visualPreparationEnabled)
+            {
                 control._visualPreparationPending = true;
+                LayoutScopeAccess::MarkPending(control);
+            }
             const size_t count = control.GetLogicalChildCount();
             for (size_t index = 0u; index < count; ++index)
                 if (Control* const child = control.GetLogicalChild(index))

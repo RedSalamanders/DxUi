@@ -543,6 +543,65 @@ private:
     ControlHost& _host;
 };
 
+// Layout invalidation scopes (W6.3; UI_ControlsAndLayout.md, "Layout invalidation scopes"). A host preparation pass enters only
+// the controls marked kSubtreePending: the control or one below it holds preparation work (intrinsic layout, a PageHost's page
+// bounds, content or visual preparation). Every site that sets such work marks the control and its ancestors; the pass
+// clears a control's mark when it enters it and sets it again after the visit while work remains below it.
+// A property assignment that affects layout (Affects::Layout) defers its ancestors: the control's own revision moves at
+// once, and the control waits in its host's queue. Before the next preparation pass and before any measurement is read, the
+// queue is resolved: a control whose re-measured result equals, under every constraint its cache recorded since its last
+// reset, what its ancestors were given stops there (its ancestors keep their measurements); otherwise its parent is
+// invalidated and checked the same way, level by level.
+struct LayoutScopeAccess final
+{
+    static constexpr uint8_t kSubtreePending  = 1u; // Control::_layoutFlags
+    static constexpr uint8_t kMeasureDeferred = 2u; // the control waits in its host's queue
+    // Queued controls per host; an assignment beyond them invalidates its ancestors at once, as before.
+    static constexpr size_t kDeferredMeasureCapacity = 64u;
+    // Marks the control and its ancestors up to the first one already marked.
+    static void MarkPending(const Control& control) noexcept
+    {
+        for (const Control* current = &control; current; current = current->_parent)
+        {
+            if ((current->_layoutFlags & kSubtreePending) != 0u)
+                return;
+            current->_layoutFlags = static_cast<uint8_t>(current->_layoutFlags | kSubtreePending);
+        }
+    }
+    [[nodiscard]] static bool IsPending(const Control& control) noexcept
+    {
+        return (control._layoutFlags & kSubtreePending) != 0u;
+    }
+    static void ClearPending(const Control& control) noexcept
+    {
+        control._layoutFlags = static_cast<uint8_t>(control._layoutFlags & ~kSubtreePending);
+    }
+    // The measure invalidation of an assignment: deferred when the control is attached below an intrinsic owner, eager
+    // (Control::InvalidateMeasure) otherwise.
+    static void InvalidateMeasureOfAssignment(Control& control) noexcept;
+    // Leaves the queue: the control moved to another host or none, which invalidates its measure eagerly.
+    static void Forget(Control& control) noexcept
+    {
+        control._layoutFlags = static_cast<uint8_t>(control._layoutFlags & ~kMeasureDeferred);
+    }
+    // Resolves every queued invalidation of `host` (no-op while resolving or when the queue is empty).
+    static void Resolve(ControlHost& host) noexcept;
+    [[nodiscard]] static bool HasQueued(const ControlHost& host) noexcept
+    {
+        return ! host._deferredMeasures.empty() && ! host._resolvingDeferredMeasures;
+    }
+    // Whether the cache of `control` holds results for its current revision and context with no slot displaced since it was
+    // last emptied; if so, marks it as the snapshot a cutoff check compares with (DxUi.Layout.cpp).
+    static bool TakeMeasureSnapshot(const Control& control) noexcept;
+    // Re-measures every snapshot slot of `control` and returns true when all agree with the snapshot (DxUi.Layout.cpp).
+    [[nodiscard]] static bool MeasureUnchanged(Control& control, ControlHost& host) noexcept;
+    // Whether the parent never reads the control's measure: a FlexPanel child arranged at FlexChildOptions::explicitSizeDip.
+    [[nodiscard]] static bool IsArrangedAtDeclaredSize(const Control& control) noexcept;
+    // The measure count a FlexPanel or FormField reports through DebugGetMeasureCount, or nullptr: the Debug verification
+    // restores it, so its whole layout stays invisible to the tests that count (DxUi.Layout.cpp).
+    [[nodiscard]] static uint64_t* DebugMeasureCount(Control& control) noexcept;
+};
+
 // Painted extent, paint region and culling (W4.10; Core_PerformanceAndResources.md, "Paint region"; UI_ControlsAndLayout.md,
 // "Painted extent"). A control's painted extent is its bounds plus its reach (Control::GetPaintOverhang); a panel's also covers
 // its visible descendants, except a ScrollPanel's, whose Paint clips its content to its own bounds. The extent is trusted only

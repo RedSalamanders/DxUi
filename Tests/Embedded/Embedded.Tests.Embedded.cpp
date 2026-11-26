@@ -14,6 +14,7 @@
 #include "Support.Tests.RichTextStateReplacement.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include "Support.Tests.UniformSourceChunks.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
 #include "Support/PostedPayload.h"
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
@@ -1627,6 +1628,13 @@ struct Report final
             std::wcerr << L"[W8.2-VERIFY] first difference from a whole build: " << DxUi::DebugGetAccessibilityFirstProgramMismatchForTest() << L'\n';
         Check(mismatches == 0u, "every incremental publication equals a whole build of the same tree");
         Check(frames.mismatches == 0u, "W4.10: every region or culled frame equals the same scene painted whole with regions and culling off");
+        // W6.3: with DXUI_LAYOUT_VERIFY=1, every pruned preparation pass was compared with a whole layout.
+        if (DxUi::Detail::LayoutScopeVerificationEnabled())
+        {
+            const DxUi::Detail::LayoutScopeVerificationTotals layouts = DxUi::Detail::ReadLayoutScopeVerificationTotals();
+            std::cout << "[W6.3-VERIFY] Embedded: verified " << layouts.verified << ", mismatches " << layouts.mismatches << '\n';
+            Check(layouts.mismatches == 0u, "W6.3: every pruned preparation pass equals a whole layout");
+        }
     }
     // W4.10: every embedded preparation that paints a region or culls is checked against a whole repaint (DXUI_FRAME_VERIFY).
     FrameVerifier::Scope frameVerifier;

@@ -6,7 +6,10 @@
 #include "Controls/DxUi.RetainedCaches.h"
 #include "Controls/DxUi.RichLayoutOptions.h"
 #include "Support.Tests.IncrementalParity.h"
+#include "Support.Tests.LayoutScopes.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
+#include "Support/WorkCounters.h"
 
 namespace EmbeddedParity
 {
@@ -233,6 +236,15 @@ inline void TestEmbeddedIncrementalParityScripts(GraphicsFixture& gpu)
     RunParityScript(RichBlocksScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(RichCodeBlocksScript<EmbeddedParityScene>(), make, "embedded", kReplay); // W7.6
     RunParityScript(RichObjectsScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+    {
+        // W6.3; Debug builds also compare every pruned preparation pass of both scenes with a whole layout.
+        const bool previous = DxUi::Detail::LayoutScopeVerificationEnabled();
+        static_cast<void>(DxUi::Detail::SetLayoutScopeVerificationForTest(true));
+        const auto restore = wil::scope_exit([previous] { static_cast<void>(DxUi::Detail::SetLayoutScopeVerificationForTest(previous)); });
+        const DxUi::Detail::WorkCounterScope scope;
+        RunParityScript(LayoutScopes::LayoutScopesScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+        Check(scope.Delta().layout.scopeVerifyMismatches == 0u, "W6.3: every pruned pass of the layout-scopes script equals a whole layout");
+    }
     // W7.3: the fresh scene prepares with the incremental scene's chunk starts.
     DxUi::RichText::Detail::testRichRecordChunkPlan = true;
     const auto stopRecording                        = wil::scope_exit([]() noexcept { DxUi::RichText::Detail::testRichRecordChunkPlan = false; });

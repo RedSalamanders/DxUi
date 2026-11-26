@@ -21,6 +21,11 @@ dependencies. A custom control must call `InvalidateMeasure` whenever anything i
 otherwise every parent reuses its earlier size. A control whose size never depends on the maximum constraints (text that
 does not wrap) may override `MeasureDependsOnMaximum` to return `false`, and is then measured once for every maximum.
 The first measurement initializes the host's typography resources before recording its cache identity.
+A host's preparation visits only the branches that asked for layout or preparation, and a library setter whose control
+measures to the same size as before (a label's text inside its minimum width) lays out that control alone: its ancestors
+keep their arrangement. A measurement you make right after a setter, in the same call, already sees the new size. A child
+given an explicit size in `SetChildOptions` never changes its parent's layout. A position-only move keeps a label's text
+layout ([layout invalidation scopes](../Specs/UI/UI_ControlsAndLayout.md#layout-invalidation-scopes)).
 `DXUI_HAS_INTRINSIC_LAYOUT` identifies headers with these APIs; rebuild the library and consumer together when
 adopting a new pin because adding a virtual hook changes the C++ ABI.
 

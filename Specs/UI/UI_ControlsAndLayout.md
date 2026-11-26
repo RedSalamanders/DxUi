@@ -336,7 +336,8 @@ hidden (showing the panel measures its children once more) and by the retained-c
 The contract for every control, the library's and a consumer's: a `MeasureOverride` reads only the constraints, the
 host's typography, DPI and the control's flow direction and density through the context, and inputs whose every change
 calls `InvalidateMeasure` (which also advances every ancestor's revision, so a parent's cached result never outlives a
-child's change). A control that changes its measured size without `InvalidateMeasure` was already measured stale by
+child's change; a property assignment's invalidation reaches the ancestors at the next measurement or preparation, see
+[layout invalidation scopes](#layout-invalidation-scopes)). A control that changes its measured size without `InvalidateMeasure` was already measured stale by
 `FlexPanel` and `FormField`, which cached by the child's revision; it is now measured stale by every parent. Debug builds
 can verify the rule: while `Detail::SetMeasureCacheVerificationForTest` is on (off by default, on in the library's layout
 tests), every hit re-runs `MeasureOverride` and counts a different answer in `layout.measureCacheVerifyMismatches`.
@@ -361,6 +362,54 @@ relevant results. Color, checked state, hover and position-only changes reuse sh
 per leaf, and hidden containers retire their children's measurements for one fresh preparation when shown again. Showing a
 control asks the host for that preparation even when no layout owner sits on its own ancestor chain, so an owner
 below a plain container that was hidden (an unselected tab page) is laid out when the container is shown.
+
+#### Layout invalidation scopes
+
+Status: implemented (performance and motion plan item W6.3, 26 November 2026).
+
+A host preparation pass (the pending-layout traversal of native painting and embedded `Prepare`) enters only the controls
+that hold preparation work or have it below them: a pending intrinsic layout, a `PageHost`'s page bounds, pending content
+or visual preparation. Every request for such work marks the control and its ancestors; the pass keeps a control's mark
+while work remains below it (a hidden control's, an unfinished preparation's, one requested during the pass) and drops it
+otherwise. A resource or typography change that prepares every control enters every control. A container's logical
+children are its children (their parent is that container), as UI Automation paths already require. A `PageHost` is
+told apart by its painted-extent kind, not by a type test per control.
+
+A property assignment that affects layout (`Affects::Layout`, every library setter of measured content) advances the
+control's own measure revision and requests its own layout at once; its ancestors are resolved before the next
+preparation pass and before any measurement or measure revision is read, so a measurement made right after the
+assignment, in the same call stack, answers the new size as before. The resolution re-measures the control under every
+constraint its cache recorded since the cache last emptied, with no result displaced in between; when every result is
+unchanged (size, baseline, overflow, or `E_NOTIMPL`), its ancestors keep their revisions and cached results and are not
+laid out again: the control alone is laid out again if it is an intrinsic owner. When a result changed, or the record is
+incomplete (a displaced result, a cache that emptied, a changed host, typography, DPI, flow or density), the parent's
+revision advances and the parent is checked the same way, level by level; a parent whose record is incomplete
+invalidates every control above it as before. A child that a `FlexPanel` arranges at `FlexChildOptions::explicitSizeDip`
+is a layout root: the parent reads neither axis of its measure, so its changes stop at it. A child whose size is fixed on
+one axis by its constraints is not one (its other axis comes from its measure). A control with no intrinsic owner above
+it, one not attached to a host, and every direct `InvalidateMeasure` (visibility, attachment, children added or removed,
+flow, density, DPI, and every caller outside the library) invalidate every ancestor at once, as before. A host queues at
+most 64 such controls; an assignment beyond them invalidates at once.
+
+What an application observes: a layout-affecting setter's effect reaches the ancestors when a measurement asks for it,
+otherwise at the next preparation; nothing else changes for it. A `MeasureOverride` must read only what the measure cache
+contract above allows: the resolution trusts the recorded constraints and results.
+
+`FlexPanel::ApplyLayout` checks its siblings once after arranging every child (it checked them after each child,
+quadratic in the child count); a callback that moved, hid, replaced or retired a sibling still aborts the pass, after the
+remaining children received this pass's bounds. A `Label` keeps its prepared layout when only its position changes
+([position-only movement](UI_ThemeAndTypography.md) does not rebuild); a new size prepares it again.
+
+Debug builds verify the scopes: while `Detail::SetLayoutScopeVerificationForTest` is on (or `DXUI_LAYOUT_VERIFY=1` is
+set for a test program), every completed outermost preparation pass is followed by a whole layout from empty measure caches
+and every control's bounds are compared, counting a difference in `layout.scopeVerifyMismatches`; the counters, caches and
+probe observer and the measure counts `FlexPanel` and `FormField` report are restored. It stays opt-in: on for the
+layout-scope tests and the oracle scripts, off for whole programs, where tests that count layout passes or inject allocation
+failures observe its extra pass. `DXUI_LAYOUT_SCOPES=0` turns the scopes off in a Debug test program for a comparison
+with the whole-tree walk and the eager invalidation. The incremental-versus-fresh oracle runs
+the `layout-scopes` script on both hosts (same-size and growing text in nested `FlexPanel`s, visibility, a `ScrollPanel`
+whose content grows, `Grid` and `Tree` data, DPI, right-to-left, a row moved between panels, a declared-size child and a
+change made while a pass arranges), with a negative control that takes a cutoff without its check.
 
 `TextField::SetFontRole` selects one valid shared `FontRole` for its text and placeholder, with `Body` as the
 default. The role is used consistently for intrinsic measurement, single- and multiline shaping/paint, selection,

@@ -2,6 +2,7 @@
 #include "Controls.Tests.Forms.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.IntrinsicLayout.h"
+#include "Controls.Tests.LayoutScopes.h"
 #include "Controls.Tests.LocalizedLayoutFixture.h"
 #include "Controls.Tests.MenuPopupReadiness.h"
 #include "Support.Tests.FatalChildren.h"
@@ -3897,6 +3898,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestExtractedRadioDoesNotUseItsFormerGroup);
     DXUI_RUN_TEST(TestCardPanelCornerRadiusChangeRepaintsTheCorner);
     RunIntrinsicLayoutTests();
+    RunLayoutScopeTests();
     RunFormLayoutTests();
     DXUI_RUN_TEST(TestLocalizedActionLayout);
     DXUI_RUN_TEST(TestPanelTakeChildPreservesInheritanceAndReparentsSafely);

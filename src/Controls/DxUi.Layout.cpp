@@ -1,7 +1,10 @@
 #include <DxUi/Failure.h>
 
 #include "DxUi.Internal.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
+
 #include "Support/MeasureCache.Tests.Hooks.h"
+#include <atomic>
 
 #include <algorithm>
 #include <array>
@@ -196,11 +199,35 @@ HRESULT AdvanceLayoutEdge(float anchor,
 #if defined(_DEBUG)
 // Debug verification of measure-cache hits (Detail::SetMeasureCacheVerificationForTest): off unless a test enables it.
 thread_local bool g_verifyMeasureCacheHits = false;
+#endif
 
 [[nodiscard]] bool SameDesired(const DesiredSize& a, const DesiredSize& b) noexcept
 {
     return a.sizeDip.width == b.sizeDip.width && a.sizeDip.height == b.sizeDip.height && a.baselineDip == b.baselineDip && a.overflow == b.overflow;
 }
+
+// W6.3 test seams (Support/LayoutScopes.Tests.Hooks.h).
+// Debug builds only: DXUI_LAYOUT_SCOPES=0 turns layout scopes off for a test program (an A/B comparison).
+[[nodiscard]] bool LayoutScopesFromEnvironment() noexcept
+{
+#if defined(_DEBUG)
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(L"DXUI_LAYOUT_SCOPES", value, static_cast<DWORD>(std::size(value)));
+    return ! (length == 1u && value[0] == L'0');
+#else
+    return true;
+#endif
+}
+thread_local bool g_layoutScopePruning    = LayoutScopesFromEnvironment();
+thread_local bool g_layoutCutoffUnchecked = false;
+#if defined(_DEBUG)
+[[nodiscard]] bool LayoutVerifyFromEnvironment() noexcept
+{
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(L"DXUI_LAYOUT_VERIFY", value, static_cast<DWORD>(std::size(value)));
+    return length == 1u && value[0] == L'1';
+}
+thread_local bool g_verifyLayoutScopes = LayoutVerifyFromEnvironment();
 #endif
 
 thread_local Detail::MeasureProbeObserver g_measureProbeObserver = nullptr;
@@ -228,6 +255,55 @@ bool SetMeasureCacheVerificationForTest(bool enabled) noexcept
     static_cast<void>(enabled);
     return false;
 #endif
+}
+
+bool LayoutScopePruningEnabled() noexcept
+{
+    return g_layoutScopePruning;
+}
+void SetLayoutScopePruningForTest(bool enabled) noexcept
+{
+    g_layoutScopePruning = enabled;
+}
+bool SetLayoutScopeVerificationForTest(bool enabled) noexcept
+{
+#if defined(_DEBUG)
+    g_verifyLayoutScopes = enabled;
+    return true;
+#else
+    static_cast<void>(enabled);
+    return false;
+#endif
+}
+namespace
+{
+std::atomic<uint64_t> g_layoutVerifiedPasses{0u};
+std::atomic<uint64_t> g_layoutVerifyMismatches{0u};
+} // namespace
+LayoutScopeVerificationTotals ReadLayoutScopeVerificationTotals() noexcept
+{
+    return {g_layoutVerifiedPasses.load(std::memory_order_relaxed), g_layoutVerifyMismatches.load(std::memory_order_relaxed)};
+}
+void NoteLayoutScopeVerification(uint64_t mismatches) noexcept
+{
+    g_layoutVerifiedPasses.fetch_add(1u, std::memory_order_relaxed);
+    g_layoutVerifyMismatches.fetch_add(mismatches, std::memory_order_relaxed);
+}
+bool LayoutScopeVerificationEnabled() noexcept
+{
+#if defined(_DEBUG)
+    return g_verifyLayoutScopes;
+#else
+    return false;
+#endif
+}
+void SetLayoutCutoffUncheckedForTest(bool enabled) noexcept
+{
+    g_layoutCutoffUnchecked = enabled;
+}
+bool LayoutCutoffUncheckedForTest() noexcept
+{
+    return g_layoutCutoffUnchecked;
 }
 } // namespace Detail
 
@@ -264,6 +340,11 @@ struct Control::MeasureCache final
     FlowDirection flow      = FlowDirection::LeftToRight;
     Density density         = Density::Standard;
     uint8_t capacity        = 0u;
+    // W6.3, in the header's last padding byte: kEvicted, a valid slot was displaced since the last Reset (the slots no longer
+    // hold every constraint the control was asked); kSnapshot, the slots are the results a queued invalidation compares with.
+    static constexpr uint8_t kEvicted  = 1u;
+    static constexpr uint8_t kSnapshot = 2u;
+    uint8_t state                      = 0u;
 
     // One allocation: the context, then `slots` value-initialized slots. Throws std::bad_alloc like operator new.
     [[nodiscard]] static MeasureCache* Create(uint8_t slots)
@@ -303,6 +384,7 @@ struct Control::MeasureCache final
         dpi        = d;
         flow       = f;
         density    = n;
+        state      = 0u;
         std::ranges::fill(Slots(), Slot{});
     }
     // The slot answering these constraints, moved to the front; nullptr when none does.
@@ -327,6 +409,8 @@ struct Control::MeasureCache final
     {
         const std::span<Slot> slots = Slots();
         const bool evicted          = (slots.back().flags & kValid) != 0u;
+        if (evicted)
+            state = static_cast<uint8_t>(state | kEvicted);
         std::rotate(slots.begin(), slots.end() - 1, slots.end());
         Slot& slot         = slots.front();
         slot.minimumWidth  = constraints.minimumDip.width;
@@ -413,6 +497,17 @@ HRESULT Control::MeasureCounted(const MeasureContext& context, const LayoutConst
     }
     if (_host && _host != &context.host)
         return E_INVALIDARG;
+    // W6.3: an assignment's deferred invalidations reach the ancestors they concern before any measurement is read, so a
+    // cache hit never answers with a size from before the assignment.
+    if (LayoutScopeAccess::HasQueued(context.host))
+    {
+        const auto resolving = GetLifetimeToken();
+        LayoutScopeAccess::Resolve(const_cast<ControlHost&>(context.host));
+        if (resolving.expired())
+            return E_ABORT;
+        if (_host && _host != &context.host)
+            return E_INVALIDARG;
+    }
     // Resolve the host's lazy device-independent typography before capturing a measurement epoch. This is
     // opt-in preparation; unsupported controls still return E_NOTIMPL if the host has no font resources.
     static_cast<void>(context.host.GetWriteFactory());
@@ -531,7 +626,83 @@ HRESULT Control::MeasureCounted(const MeasureContext& context, const LayoutConst
 
 uint64_t Control::GetMeasureRevision() const noexcept
 {
+    // W6.3: a revision read after an assignment below this control already reflects it, as before the queue existed.
+    if (_host && LayoutScopeAccess::HasQueued(*_host))
+        LayoutScopeAccess::Resolve(*_host);
     return _measureRevision;
+}
+
+bool LayoutScopeAccess::TakeMeasureSnapshot(const Control& control) noexcept
+{
+    Control::MeasureCache* const cache = control._measureCache.get();
+    if (! cache || ! control._host || cache->host != control._host || cache->revision != control._measureRevision ||
+        (cache->state & Control::MeasureCache::kEvicted) != 0u)
+        return false;
+    cache->state = static_cast<uint8_t>(cache->state | Control::MeasureCache::kSnapshot);
+    return true;
+}
+
+bool LayoutScopeAccess::MeasureUnchanged(Control& control, ControlHost& host) noexcept
+{
+    using Cache              = Control::MeasureCache;
+    const Cache* const cache = control._measureCache.get();
+    if (! cache || (cache->state & Cache::kSnapshot) == 0u || (cache->state & Cache::kEvicted) != 0u || cache->host != &host ||
+        cache->typography != host.GetTypographyRevision() || cache->dpi != host.GetDpi() || cache->flow != control.GetFlowDirection() ||
+        cache->density != control.GetDensity())
+        return false;
+    // The slots are overwritten by the first new measurement: copy them first.
+    std::array<Cache::Slot, Cache::kMaximumDependentSlots> slots{};
+    size_t count = 0u;
+    for (const Cache::Slot& slot : cache->Slots())
+        if ((slot.flags & Cache::kValid) != 0u && count < slots.size())
+            slots[count++] = slot;
+    const auto lifetime = control.GetLifetimeToken();
+    for (size_t index = 0u; index < count; ++index)
+    {
+        const Cache::Slot& slot = slots[index];
+        LayoutConstraints constraints;
+        constraints.minimumDip = D2D1::SizeF(slot.minimumWidth, slot.minimumHeight);
+        if (slot.maximumWidth >= 0.0f)
+            constraints.maximumWidthDip = slot.maximumWidth;
+        if (slot.maximumHeight >= 0.0f)
+            constraints.maximumHeightDip = slot.maximumHeight;
+        size_t budget = kMaxIntrinsicTextUnits;
+        DesiredSize measured;
+        bool executed    = false;
+        const HRESULT hr = control.MeasureCounted(MeasureContext{host, &budget}, constraints, measured, &executed);
+        if (lifetime.expired())
+            return false;
+        if ((slot.flags & Cache::kNotImplemented) != 0u)
+        {
+            if (hr != E_NOTIMPL)
+                return false;
+            continue;
+        }
+        if (FAILED(hr) || ! SameDesired(measured, Cache::Result(slot, constraints)))
+            return false;
+    }
+    return true;
+}
+
+uint64_t* LayoutScopeAccess::DebugMeasureCount(Control& control) noexcept
+{
+    if (auto* const flex = dynamic_cast<FlexPanel*>(&control))
+        return &flex->_measureCount;
+    if (auto* const field = dynamic_cast<FormField*>(&control))
+        return &field->_measureCount;
+    return nullptr;
+}
+
+bool LayoutScopeAccess::IsArrangedAtDeclaredSize(const Control& control) noexcept
+{
+    // The parent's records are read as they are: a child with no record yet is measured, so it is not a layout root.
+    const auto* const flex = dynamic_cast<const FlexPanel*>(control._parent);
+    if (! flex)
+        return false;
+    for (const auto& record : flex->_records)
+        if (record.child == &control && ! record.lifetime.expired())
+            return record.options.explicitSizeDip.has_value();
+    return false;
 }
 
 HRESULT Control::MeasureOverride(const MeasureContext& /*context*/, const LayoutConstraints& /*constraints*/, DesiredSize& /*result*/) const
@@ -1344,13 +1515,16 @@ HRESULT FlexPanel::ApplyLayout(const ControlHost& host) noexcept
             GetChildren()[index].get() != child || ! child->IsVisible() || ! SameRect(child->GetBounds(), childBounds))
             return E_ABORT;
         _records[index].entryBounds = childBounds;
-        for (size_t check = 0u; check < count; ++check)
-        {
-            const auto* const current = GetChildren()[check].get();
-            if (current != _records[check].child || (current && (_records[check].lifetime.expired() || current->IsVisible() != _records[check].visible ||
-                                                                 ! SameRect(current->GetBounds(), _records[check].entryBounds))))
-                return E_ABORT;
-        }
+    }
+    // Every sibling as this pass left it, checked once after the arrangement (W6.3; it was after each child: O(C^2)). A child's
+    // SetBounds callback that moved, hid, replaced or retired a sibling aborts the pass as before; that change requested the
+    // layout again, and the pass committed nothing beyond the bounds it set.
+    for (size_t check = 0u; check < count; ++check)
+    {
+        const auto* const current = GetChildren()[check].get();
+        if (current != _records[check].child || (current && (_records[check].lifetime.expired() || current->IsVisible() != _records[check].visible ||
+                                                             ! SameRect(current->GetBounds(), _records[check].entryBounds))))
+            return E_ABORT;
     }
     _contentSize    = content;
     _layoutOverflow = desired.overflow || geometryOverflow || content.width > bounds.right - bounds.left || content.height > bounds.bottom - bounds.top;

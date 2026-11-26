@@ -1339,7 +1339,7 @@ measure runs once per key, and a layout pass visits only dirty subtrees and stop
     bounds oracle clean.
   - **Needs**: `W0.1`, `W0.5`. **Size**: M.
 
-- [ ] **W6.3 Layout invalidation scopes.**
+- [x] **W6.3 Layout invalidation scopes.**
   - **Why**: any pending flag makes `PreparePendingPageLayout` visit every control (`DxUi.Controls.cpp:2375-2377`,
     `:2393-2529`), copying `weak_ptr`s and running two `dynamic_cast<PageHost*>` per visit (`:2428`, `:2515`).
     `InvalidateMeasure` bumps every ancestor's revision (`DxUi.cpp:1133-1154`), with no cutoff when a re-measured size is

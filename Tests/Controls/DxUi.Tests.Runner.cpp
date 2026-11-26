@@ -5,6 +5,7 @@
 #include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
 
 #include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
@@ -583,6 +584,8 @@ int wmain(int argc, wchar_t** argv)
         const FrameVerifier::Totals framesBefore = FrameVerifier::Read();
         std::optional<FrameVerifier::Scope> frameVerifier;
         frameVerifier.emplace();
+        // W6.3: with DXUI_LAYOUT_VERIFY=1, every pruned preparation pass is compared with a whole layout.
+        const DxUi::Detail::LayoutScopeVerificationTotals layoutsBefore = DxUi::Detail::ReadLayoutScopeVerificationTotals();
 #endif
         {
             std::optional<DxUi::TestSupport::ScopedTestDeadline> fixtureDeadline;
@@ -598,6 +601,14 @@ int wmain(int argc, wchar_t** argv)
                   << std::flush;
         Require(framesAfter.mismatches == framesBefore.mismatches,
                 "W4.10: every region or culled frame equals the same scene painted whole with regions and culling off");
+        if (DxUi::Detail::LayoutScopeVerificationEnabled())
+        {
+            const DxUi::Detail::LayoutScopeVerificationTotals layoutsAfter = DxUi::Detail::ReadLayoutScopeVerificationTotals();
+            std::cerr << "[W6.3-VERIFY] " << name << ": verified " << (layoutsAfter.verified - layoutsBefore.verified) << ", mismatches "
+                      << (layoutsAfter.mismatches - layoutsBefore.mismatches) << '\n'
+                      << std::flush;
+            Require(layoutsAfter.mismatches == layoutsBefore.mismatches, "W6.3: every pruned preparation pass equals a whole layout");
+        }
         DxUi::DebugSetAccessibilityIncrementalVerificationForTest(false);
         uint64_t verifiedAfter = 0u, mismatchesAfter = 0u;
         DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verifiedAfter, mismatchesAfter);

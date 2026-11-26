@@ -15,6 +15,7 @@
 #include <d2d1effects.h>
 
 #include "Support/Diagnostics.h"
+#include "Support/LayoutScopes.Tests.Hooks.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 #include "Support/Trace.h"
 
@@ -478,6 +479,8 @@ void Control::SetVisible(bool visible) noexcept
         }
         if (_visualPreparationEnabled)
             _visualPreparationPending = true;
+        // W6.3: work left below it while hidden is reached again (its marks stayed); a shown control is entered once more.
+        LayoutScopeAccess::MarkPending(*this);
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         InvalidateMeasure();
         if (lifetime.expired())
@@ -1095,7 +1098,8 @@ void Control::RouteAffectsAt(Affects affects, uint8_t hitRevisionSite) noexcept
     if (HasAffects(affects, Affects::Layout))
     {
         const AttestedInvalidation declared(GetHost());
-        InvalidateMeasure();
+        // W6.3: its ancestors wait for the cutoff check before the next preparation or measurement reads them.
+        LayoutScopeAccess::InvalidateMeasureOfAssignment(*this);
         if (lifetime.expired())
             return;
     }
@@ -2184,6 +2188,7 @@ void Control::InvalidateMeasure() noexcept
             control->_intrinsicAllocationRetryUsed = false;
             control->_intrinsicLayoutPending       = true;
             hasLayoutOwner                         = true;
+            LayoutScopeAccess::MarkPending(*control);
         }
     }
     // Geometry moves only when the next preparation arranges it, and SetBounds then advances the interaction revision.
@@ -2194,6 +2199,107 @@ void Control::InvalidateMeasure() noexcept
         _host->_pendingIntrinsicLayout = true;
         // The layout it asks for moves controls through SetBounds, which adds what moves; until then this control's paint.
         PaintExtentAccess::Invalidate(*_host, *this);
+    }
+}
+
+void LayoutScopeAccess::InvalidateMeasureOfAssignment(Control& control) noexcept
+{
+    ControlHost* const host = control._host;
+    // A detached control, a root, or one with no intrinsic owner above it has no layout to spare: today's eager path.
+    bool ownerAbove = false;
+    for (const Control* ancestor = control._parent; ancestor && ! ownerAbove; ancestor = ancestor->_parent)
+        ownerAbove = ancestor->_intrinsicLayoutEnabled;
+    if (! host || ! ownerAbove || ! Detail::LayoutScopePruningEnabled())
+    {
+        control.InvalidateMeasure();
+        return;
+    }
+    if ((control._layoutFlags & kMeasureDeferred) == 0u)
+    {
+        try
+        {
+            if (host->_deferredMeasures.capacity() == 0u)
+                host->_deferredMeasures.reserve(kDeferredMeasureCapacity);
+            if (host->_deferredMeasures.size() >= kDeferredMeasureCapacity)
+            {
+                control.InvalidateMeasure();
+                return;
+            }
+            host->_deferredMeasures.push_back({&control, GetControlLifetimeToken(control)});
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+        static_cast<void>(TakeMeasureSnapshot(control));
+        control._layoutFlags = static_cast<uint8_t>(control._layoutFlags | kMeasureDeferred);
+    }
+    ++Detail::Work().layout.measureInvalidations;
+    ++control._measureRevision;
+    if (control._intrinsicLayoutEnabled)
+    {
+        control._intrinsicAllocationRetryUsed = false;
+        control._intrinsicLayoutPending       = true;
+        MarkPending(control);
+    }
+    // The resolution runs at the next preparation: ask for one, as the eager path does for a control below an owner.
+    host->_pendingIntrinsicLayout = true;
+    PaintExtentAccess::Invalidate(*host, control);
+}
+
+void LayoutScopeAccess::Resolve(ControlHost& host) noexcept
+{
+    if (host._resolvingDeferredMeasures || host._deferredMeasures.empty())
+        return;
+    host._resolvingDeferredMeasures = true;
+    const auto done                 = wil::scope_exit([&host]() noexcept { host._resolvingDeferredMeasures = false; });
+    // Each entry is taken out before it is resolved: a measurement may run code that queues again (it then resolves eagerly,
+    // since the flag is set, through the next resolution of this loop).
+    while (! host._deferredMeasures.empty())
+    {
+        ControlHost::DeferredMeasure entry = std::move(host._deferredMeasures.back());
+        host._deferredMeasures.pop_back();
+        if (entry.lifetime.expired() || ! entry.control)
+            continue;
+        Control* control = entry.control;
+        if ((control->_layoutFlags & kMeasureDeferred) == 0u)
+            continue;
+        control->_layoutFlags = static_cast<uint8_t>(control->_layoutFlags & ~kMeasureDeferred);
+        if (control->_host != &host)
+            continue; // it moved: PropagateHost invalidated it eagerly
+        // Level by level: a control whose parent never reads its measure, or whose results are unchanged under every
+        // constraint it was asked, stops the propagation; otherwise its parent's revision moves and the parent is checked.
+        while (control)
+        {
+            std::weak_ptr<int> lifetime = GetControlLifetimeToken(*control);
+            if (Detail::LayoutCutoffUncheckedForTest() || IsArrangedAtDeclaredSize(*control) || MeasureUnchanged(*control, host))
+            {
+                ++Detail::Work().layout.measureCutoffs;
+                break;
+            }
+            if (lifetime.expired() || control->_host != &host)
+                break;
+            Control* const parent = control->_parent;
+            if (! parent)
+                break;
+            const bool snapshot = TakeMeasureSnapshot(*parent);
+            ++parent->_measureRevision;
+            if (parent->_intrinsicLayoutEnabled)
+            {
+                parent->_intrinsicAllocationRetryUsed = false;
+                parent->_intrinsicLayoutPending       = true;
+                MarkPending(*parent);
+                host._pendingIntrinsicLayout = true;
+            }
+            if (! snapshot)
+            {
+                // No complete record of what the parent was asked: everything above it is invalidated as before.
+                if (Control* const grandparent = parent->_parent)
+                    grandparent->InvalidateMeasure();
+                break;
+            }
+            control = parent;
+        }
     }
 }
 
@@ -2209,6 +2315,7 @@ void Control::RequestIntrinsicLayout() noexcept
     {
         _intrinsicAllocationRetryUsed = false;
         _intrinsicLayoutPending       = true;
+        LayoutScopeAccess::MarkPending(*this);
         if (_host)
         {
             _host->_pendingIntrinsicLayout = true;
@@ -2234,6 +2341,7 @@ void Control::RequestContentPreparation(bool requestWake) const noexcept
     if (! _contentPreparationEnabled)
         return;
     _contentPreparationState = ContentPreparationState::Pending;
+    LayoutScopeAccess::MarkPending(*this);
     if (_host)
     {
         _host->_pendingContentPreparation = true;
@@ -2260,6 +2368,7 @@ void Control::RequestVisualContentPreparation(bool requestWake) const noexcept
     if (! _visualPreparationEnabled)
         return;
     _visualPreparationPending = true;
+    LayoutScopeAccess::MarkPending(*this);
     if (_host)
     {
         _host->_pendingVisualPreparation = true;
@@ -2346,6 +2455,14 @@ void Control::PropagateHost(ControlHost* host) noexcept
     else
         _paintKind = static_cast<uint8_t>(PaintKind::Unresolved);
     _host = host;
+    // W6.3: a queued invalidation belonged to the previous host (the eager InvalidateMeasure below replaces it), and work
+    // marked below this control is reached from its new ancestors.
+    LayoutScopeAccess::Forget(*this);
+    if (LayoutScopeAccess::IsPending(*this) && _parent)
+    {
+        LayoutScopeAccess::ClearPending(*this);
+        LayoutScopeAccess::MarkPending(*this);
+    }
     if (host && std::exchange(_tickRequestPending, false))
         host->RequestAnimationOnce(*this);
     if (host && ! IsHitTestReported())

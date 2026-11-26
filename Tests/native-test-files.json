@@ -34,6 +34,8 @@
   "Tests/Controls/Controls.Tests.IncrementalParity.h",
   "Tests/Controls/Controls.Tests.IntrinsicLayout.cpp",
   "Tests/Controls/Controls.Tests.IntrinsicLayout.h",
+  "Tests/Controls/Controls.Tests.LayoutScopes.cpp",
+  "Tests/Controls/Controls.Tests.LayoutScopes.h",
   "Tests/Controls/Controls.Tests.LocalizedLayoutFixture.h",
   "Tests/Controls/Controls.Tests.MarkdownCorpus.h",
   "Tests/Controls/Controls.Tests.MenuPopupReadiness.cpp",
@@ -236,6 +238,7 @@
   "Tests/Support/Support.Tests.GpuEngineTime.h",
   "Tests/Support/Support.Tests.HeapDiagnostic.h",
   "Tests/Support/Support.Tests.IncrementalParity.h",
+  "Tests/Support/Support.Tests.LayoutScopes.h",
   "Tests/Support/Support.Tests.InteractiveLease.h",
   "Tests/Support/Support.Tests.LayoutFaultScenarios.h",
   "Tests/Support/Support.Tests.MarkdownBlocks.h",
@@ -283,6 +286,7 @@
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision6.cpp",
   "src/Support/Failure.Tests.Hooks.h",
   "src/Support/FramePacing.Tests.Hooks.h",
+  "src/Support/LayoutScopes.Tests.Hooks.h",
   "src/Support/MeasureCache.Tests.Hooks.h",
   "src/Support/RetainedCaches.Tests.Hooks.h"
 ]

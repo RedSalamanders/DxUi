@@ -1469,18 +1469,24 @@ void TestFlexCacheInvalidationAndCompositeBounds()
     panel->SetBounds(D2D1::RectF(10.0f, 15.0f, 310.0f, 265.0f));
     RequireSucceeded(panel->ApplyLayout(host), "paint, draft and position-only changes");
     Require(panel->DebugGetMeasureCount() == measured, "color, checked state, values and move-only changes reuse all numeric measures");
-    label->SetText(L"Nom complet du document");
-    RequireSucceeded(panel->ApplyLayout(host), "shape one changed label");
-    Require(panel->DebugGetMeasureCount() == measured + 1u, "content mutation dirties only its own cached leaf");
+    {
+        // W6.3: the label's new text is measured once, by the check that resolves its invalidation before the panel reads its
+        // measure (the panel then reads the cached result), so the whole-program count is the one to compare.
+        const Detail::WorkCounterScope text;
+        label->SetText(L"Nom complet du document");
+        RequireSucceeded(panel->ApplyLayout(host), "shape one changed label");
+        Require(text.Delta().layout.measureOverrideExecutions == 1u, "content mutation dirties only its own cached leaf");
+    }
+    const auto afterText = panel->DebugGetMeasureCount();
     field->SetVisible(false);
     RequireSucceeded(panel->ApplyLayout(host), "omit hidden editor");
-    Require(panel->DebugGetMeasureCount() == measured + 1u, "visibility changes reuse remaining siblings");
+    Require(panel->DebugGetMeasureCount() == afterText, "visibility changes reuse remaining siblings");
     field->SetVisible(true);
     RequireSucceeded(panel->ApplyLayout(host), "restore unchanged editor");
-    Require(panel->DebugGetMeasureCount() == measured + 2u, "restored availability remeasures that leaf once");
+    Require(panel->DebugGetMeasureCount() == afterText + 1u, "restored availability remeasures that leaf once");
     panel->SetDensity(Density::Compact);
     RequireSucceeded(panel->ApplyLayout(host), "density changes inherited typography and chrome");
-    Require(panel->DebugGetMeasureCount() == measured + 6u, "all density-dependent leaves are remeasured once");
+    Require(panel->DebugGetMeasureCount() == afterText + 5u, "all density-dependent leaves are remeasured once");
 }
 
 void TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry()

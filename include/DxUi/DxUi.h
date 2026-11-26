@@ -2084,6 +2084,9 @@ private:
     // Library-internal (ControlModelQueryAccess): the library control class this object is or derives from, set by that
     // class's constructor, which UI Automation reads in place of type tests. Fills padding: the object does not grow.
     uint8_t _accessibilityKind = 0u;
+    // Layout invalidation scopes (W6.3, LayoutScopeAccess in DxUi.Internal.h): whether this control or one below it holds
+    // preparation work, and whether a measure invalidation of it waits in its host's queue. Fills padding as well.
+    mutable uint8_t _layoutFlags = 0u;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
@@ -2118,6 +2121,7 @@ private:
     static constexpr uint8_t kHitTestCounted = 1u;
     uint8_t _hitTestReporting                = 0u;
     friend struct PaintExtentAccess;
+    friend struct LayoutScopeAccess;
     [[nodiscard]] bool IsHitTestReported() const noexcept;
     // A plain Label (no mnemonic, no typography override, exactly class Label) has no visual preparation; anything else
     // derived from Label keeps it. Called when a mnemonic or override changes and when the control attaches.
@@ -5016,6 +5020,7 @@ private:
                         std::array<PartLayout, 4>& staged) const noexcept;
     bool ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept;
     HRESULT ApplyLayoutFor(const ControlHost& host, LabelPlacement placement, float labelWidthDip, const std::array<PartLayout, 4>* staged = nullptr) noexcept;
+    friend struct LayoutScopeAccess; // the Debug layout verification keeps its measure count (W6.3)
     // The editor's last measured width (before the preferred size applies), which FormPanel reads to bound a shared label.
     mutable float _editorMeasuredWidthDip = 0.0f;
     mutable uint64_t _measureCount        = 0;
@@ -5152,6 +5157,7 @@ protected:
     void PropagateHost(ControlHost* host) noexcept override;
 
 private:
+    friend struct LayoutScopeAccess; // reads whether a child is arranged at a declared size (W6.3)
     struct ChildRecord
     {
         const Control* child = nullptr;
@@ -7338,6 +7344,18 @@ private:
     const Control* _reportedLayoutFailureControl = nullptr;
     HRESULT _reportedLayoutFailure               = S_OK;
     uint64_t _intrinsicLayoutFailureCount        = 0u;
+    // Layout invalidation scopes (W6.3, LayoutScopeAccess): measure invalidations of an assignment waiting for their cutoff
+    // check, resolved before the next preparation pass and before any measure is read.
+    struct DeferredMeasure
+    {
+        Control* control = nullptr;
+        std::weak_ptr<int> lifetime;
+    };
+    std::vector<DeferredMeasure> _deferredMeasures;
+    bool _resolvingDeferredMeasures = false;
+    friend struct LayoutScopeAccess;
+    // Debug builds: the whole-layout comparison Detail::SetLayoutScopeVerificationForTest enables.
+    void VerifyLayoutScopesForTest(Control& root) noexcept;
     void BeginIntrinsicArrange(const Control& owner) noexcept;
     // Prepares pending intrinsic layout before a frame. A control whose layout fails keeps its previous geometry, which
     // the frame paints, and is reported once; false only when a callback changed the tree mid-pass, whose geometry the
