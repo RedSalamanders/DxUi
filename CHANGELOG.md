@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Align the vcpkg registry, tool and shared CI engine with the reviewed convergence pins.
 - Adopt the shared native build profile reference in the root development guidance.
 - Added `HOLD` WIP plan `Specs/Plans/WIP/RichTextProofingSupport_2026-11-24.md` (indexed in `Specs/Plans/WIP/README.md`) specifying eight future RichText proofing improvements (`DX-SPELL-1`–`DX-SPELL-8`, including smooth continuous wave rendering for `RichTextDecorationKind::Squiggle`) so consumers such as RedTilde can retire local Markdown prose-masking, viewport decoration-slicing, coordinate hit-test, and multi-fragment replacement adapters and adopt crisp Word-style squiggles after a future API bump; verified with `validate.ps1` and `Tools/Test-Changelog.ps1 -Base origin/main` (plan only, no code implementation started).
 - Build: Check private and protected field names and reserved identifiers with the root `.clang-tidy` configuration.
